@@ -25,9 +25,10 @@ jobs:
             os: ubuntu-latest
             archive: tar.gz
             name: Linux_arm64
+            cross: true
           # macOS
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-13
             archive: tar.gz
             name: MacOS_64bit
           - target: aarch64-apple-darwin
@@ -48,18 +49,22 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cross-compilation tools (Linux ARM64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Create .env file
+        shell: bash
         run: |
           echo "TG_API_ID=${{ secrets.TG_API_ID }}" >> .env
           echo "TG_API_HASH=${{ secrets.TG_API_HASH }}" >> .env
 
-      - name: Build
+      - name: Build (cross)
+        if: matrix.cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (native)
+        if: ${{ !matrix.cross }}
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Package (Unix)
@@ -67,14 +72,11 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           tar -czvf ../../../tdlr_${{ matrix.name }}.tar.gz tdlr
-          cd ../../..
 
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd target/${{ matrix.target }}/release
-          Compress-Archive -Path tdlr.exe -DestinationPath ../../../tdlr_${{ matrix.name }}.zip
-          cd ../../..
+          Compress-Archive -Path target/${{ matrix.target }}/release/tdlr.exe -DestinationPath tdlr_${{ matrix.name }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -97,10 +99,11 @@ jobs:
         with:
           path: artifacts
 
+      - name: List artifacts
+        run: find artifacts -type f
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
