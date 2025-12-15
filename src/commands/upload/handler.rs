@@ -1,6 +1,6 @@
 //! Upload handlers for single files and media groups
 
-use super::expr::{eval_caption, eval_routing, FileContext};
+use super::expr::{eval_routing, FileContext};
 use super::file::ValidatedFile;
 use super::output;
 use crate::telegram::upload::{
@@ -35,7 +35,7 @@ pub struct UploadContext<'a> {
     pub client: &'a Client,
     pub chat: &'a Option<String>,
     pub topic: Option<i32>,
-    pub caption: &'a str,
+    pub caption: &'a Option<String>,
     pub to: &'a Option<String>,
     pub concurrent: usize,
 }
@@ -53,21 +53,20 @@ pub async fn upload_single_files(
         std::collections::HashMap::new();
 
     // Collect unique destinations
-    let mut destinations: Vec<(usize, String, String)> = Vec::new();
+    let mut destinations: Vec<(usize, String)> = Vec::new();
     for (i, file) in files.iter().enumerate() {
         let file_ctx = FileContext::from_path_with_context(&file.path, i, total);
-        let file_caption = eval_caption(ctx.caption, &file_ctx);
         let dest = if let Some(ref to_expr) = ctx.to {
             eval_routing(to_expr, &file_ctx)
         } else {
             ctx.chat.clone().unwrap_or_default()
         };
-        destinations.push((i, dest, file_caption));
+        destinations.push((i, dest));
     }
 
     // Pre-resolve unique chats
     let unique_dests: std::collections::HashSet<_> =
-        destinations.iter().map(|(_, d, _)| d.clone()).collect();
+        destinations.iter().map(|(_, d)| d.clone()).collect();
     for dest in unique_dests {
         if !chat_cache.contains_key(&dest) {
             match resolve_chat(ctx.client, &dest).await {
@@ -85,10 +84,10 @@ pub async fn upload_single_files(
     let stats_mutex = Arc::new(Mutex::new((0usize, 0usize))); // (success, failed)
 
     // Process files concurrently
+    let caption_ref = ctx.caption.as_deref();
     let _: Vec<_> = stream::iter(files.iter().enumerate())
         .map(|(i, file)| {
             let file_ctx = FileContext::from_path_with_context(&file.path, i, total);
-            let file_caption = eval_caption(ctx.caption, &file_ctx);
             let dest = if let Some(ref to_expr) = ctx.to {
                 eval_routing(to_expr, &file_ctx)
             } else {
@@ -106,9 +105,7 @@ pub async fn upload_single_files(
                     return;
                 };
 
-                match upload_file(ctx.client, &file.path, chat, ctx.topic, Some(&file_caption))
-                    .await
-                {
+                match upload_file(ctx.client, &file.path, chat, ctx.topic, caption_ref).await {
                     Ok(msg) => {
                         output::print_success(msg.id());
                         let mut s = stats_mutex.lock().await;
@@ -182,16 +179,11 @@ pub async fn upload_media_groups(
     // Media groups are sent sequentially to maintain order
     for (batch_idx, batch) in media_files.chunks(MAX_MEDIA_GROUP_SIZE).enumerate() {
         let batch_paths: Vec<&std::path::Path> = batch.iter().map(|f| f.path.as_path()).collect();
-        let batch_captions: Vec<String> = batch
-            .iter()
-            .enumerate()
-            .map(|(i, f)| {
-                let global_idx = batch_idx * MAX_MEDIA_GROUP_SIZE + i;
-                let file_ctx =
-                    FileContext::from_path_with_context(&f.path, global_idx, media_files.len());
-                eval_caption(ctx.caption, &file_ctx)
-            })
-            .collect();
+        // For media groups, apply the same caption to all items if provided
+        let batch_captions: Option<Vec<String>> = ctx
+            .caption
+            .as_ref()
+            .map(|c| batch.iter().map(|_| c.clone()).collect());
 
         output::print_group_progress(batch_idx, total_batches, batch.len());
 
@@ -200,7 +192,7 @@ pub async fn upload_media_groups(
             &batch_paths,
             &chat,
             ctx.topic,
-            Some(&batch_captions),
+            batch_captions.as_ref().map(|v| v.as_slice()),
         )
         .await
         {

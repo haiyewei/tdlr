@@ -20,7 +20,7 @@ pub async fn run(
     topic: Option<i32>,
     account: Option<Vec<i64>>,
     all_accounts: bool,
-    caption: String,
+    caption: Option<String>,
     to: Option<String>,
     group: bool,
 ) -> Result<()> {

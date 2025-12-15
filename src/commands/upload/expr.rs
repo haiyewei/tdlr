@@ -258,54 +258,6 @@ impl FileContext {
 
         ctx
     }
-
-    /// Build simple variable map for template substitution
-    pub fn to_vars(&self) -> std::collections::HashMap<String, String> {
-        let now = chrono::Local::now();
-        let mut vars = std::collections::HashMap::new();
-
-        // File info
-        vars.insert("name".to_string(), self.name.clone());
-        vars.insert("stem".to_string(), self.stem.clone());
-        vars.insert("ext".to_string(), self.ext.clone());
-        vars.insert("EXT".to_string(), self.ext.to_uppercase());
-        vars.insert("mime".to_string(), self.mime.clone());
-        vars.insert("type".to_string(), self.file_type.clone());
-        vars.insert("path".to_string(), self.path.clone());
-        vars.insert("dir".to_string(), self.dir.clone());
-        vars.insert("depth".to_string(), self.depth.to_string());
-
-        // Size
-        vars.insert("size".to_string(), format_size(self.size));
-        vars.insert("size_bytes".to_string(), self.size.to_string());
-        vars.insert(
-            "size_kb".to_string(),
-            format!("{:.2}", self.size as f64 / 1024.0),
-        );
-        vars.insert(
-            "size_mb".to_string(),
-            format!("{:.2}", self.size as f64 / (1024.0 * 1024.0)),
-        );
-
-        // Date/time
-        vars.insert("date".to_string(), now.format("%Y-%m-%d").to_string());
-        vars.insert("time".to_string(), now.format("%H:%M:%S").to_string());
-        vars.insert(
-            "datetime".to_string(),
-            now.format("%Y-%m-%d %H:%M:%S").to_string(),
-        );
-        vars.insert("year".to_string(), now.format("%Y").to_string());
-        vars.insert("month".to_string(), now.format("%m").to_string());
-        vars.insert("day".to_string(), now.format("%d").to_string());
-        vars.insert("weekday".to_string(), now.format("%a").to_string());
-
-        // Upload context
-        vars.insert("index".to_string(), self.index.to_string());
-        vars.insert("total".to_string(), self.total.to_string());
-        vars.insert("num".to_string(), (self.index + 1).to_string());
-
-        vars
-    }
 }
 
 /// Evaluate an expression and return string result
@@ -327,37 +279,6 @@ pub fn eval_routing(expr: &str, ctx: &FileContext) -> String {
             "me".to_string() // Default to Saved Messages on error
         }
     }
-}
-
-/// Evaluate caption - supports both simple {var} templates and evalexpr expressions
-pub fn eval_caption(template: &str, ctx: &FileContext) -> String {
-    // If template contains {var} patterns, use simple substitution
-    if template.contains('{') && template.contains('}') {
-        let vars = ctx.to_vars();
-        eval_template(template, &vars)
-    } else {
-        // Otherwise treat as evalexpr expression
-        match eval_expr(template, ctx) {
-            Ok(result) => result,
-            Err(_) => template.to_string(),
-        }
-    }
-}
-
-/// Simple template evaluation with {var} substitution
-pub fn eval_template(template: &str, vars: &std::collections::HashMap<String, String>) -> String {
-    let mut result = template.to_string();
-
-    // Simple {var} substitution
-    for (key, value) in vars {
-        result = result.replace(&format!("{{{}}}", key), value);
-    }
-
-    // Handle escape sequences
-    result = result.replace("\\n", "\n");
-    result = result.replace("\\t", "\t");
-
-    result
 }
 
 /// Convert evalexpr Value to String

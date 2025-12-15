@@ -17,7 +17,7 @@ tdlr upload -p <路径> [选项]
 | `--topic` | | 话题 ID（用于论坛群组，需配合 --chat） |
 | `--include` | `-i` | 仅包含指定扩展名（如：jpg,png,mp4） |
 | `--exclude` | `-e` | 排除指定扩展名（如：tmp,log） |
-| `--caption` | | 文件说明模板 |
+| `--caption` | | 文件说明（HTML 格式，直接发送） |
 | `--to` | | 目标表达式（与 --chat/--topic 冲突） |
 | `--account` | `-a` | 指定账户 ID（可多个） |
 | `--all-accounts` | | 使用所有账户 |
@@ -160,25 +160,17 @@ tdlr upload -p ./temp -c -1001234567890 --rm
 | `MB` | 1024 * 1024 |
 | `GB` | 1024 * 1024 * 1024 |
 
-### Caption 模板
+### Caption
 
-支持 `{变量}` 模板语法：
-
-```bash
-# 默认模板
---caption "<code>{name}</code> - <code>{mime}</code>"
-
-# 自定义模板
---caption "{name} ({size})"
---caption "[{num}/{total}] {name}"
---caption "{date} - {stem}"
-```
-
-也支持 evalexpr 表达式：
+直接传递 HTML 格式的说明文字，不做模板替换：
 
 ```bash
---caption 'if(is_video, "🎬 ", if(is_image, "🖼️ ", "📁 ")) + name'
---caption 'stem + " (" + size_str + ")"'
+# 简单文本
+--caption "这是文件说明"
+
+# HTML 格式
+--caption "<b>重要文件</b>"
+--caption "<code>备份文件</code>"
 ```
 
 ### 路由表达式 (--to)
@@ -224,9 +216,9 @@ floor(x) / ceil(x)       # 取整
 ## 完整示例
 
 ```bash
-# 将 photos 目录的图片上传到 @my_photos 频道，带序号说明
+# 将 photos 目录的图片上传到 @my_photos 频道
 tdlr upload -p ./photos -i jpg,png -c @my_photos \
-  --caption "[{num}/{total}] {name}"
+  --caption "<b>照片备份</b>"
 
 # 根据文件类型自动路由到不同群组
 tdlr upload -p ./media \

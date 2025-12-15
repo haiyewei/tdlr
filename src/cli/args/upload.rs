@@ -28,9 +28,9 @@ pub struct UploadArgs {
     /// Use all accounts
     #[arg(long, conflicts_with = "account")]
     pub all_accounts: bool,
-    /// Caption template (supports: {name}, {ext}, {mime}, {size}, {path})
-    #[arg(long, default_value = "<code>{name}</code> - <code>{mime}</code>")]
-    pub caption: String,
+    /// Caption HTML (sent as-is, no template substitution)
+    #[arg(long)]
+    pub caption: Option<String>,
     /// Destination peer expression (conflicts with --chat and --topic)
     #[arg(long, conflicts_with_all = ["chat", "topic"])]
     pub to: Option<String>,
