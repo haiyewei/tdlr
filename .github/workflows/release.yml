@@ -1,4 +1,8 @@
+# Build and release binaries for multiple platforms
 name: Release
+
+permissions:
+  contents: write
 
 on:
   push:
@@ -10,36 +14,33 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.target }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Linux
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-            name: Linux_64bit
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-            name: Linux_arm64
+          - name: Linux-x86_64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact: tdlr_Linux_64bit.tar.gz
+          - name: Linux-aarch64
+            os: ubuntu-22.04
+            target: aarch64-unknown-linux-gnu
+            artifact: tdlr_Linux_arm64.tar.gz
             cross: true
-          # macOS
-          - target: x86_64-apple-darwin
+          - name: macOS-x86_64
             os: macos-13
-            archive: tar.gz
-            name: MacOS_64bit
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            archive: tar.gz
-            name: MacOS_arm64
-          # Windows
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            archive: zip
-            name: Windows_64bit
+            target: x86_64-apple-darwin
+            artifact: tdlr_MacOS_64bit.tar.gz
+          - name: macOS-aarch64
+            os: macos-14
+            target: aarch64-apple-darwin
+            artifact: tdlr_MacOS_arm64.tar.gz
+          - name: Windows-x86_64
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            artifact: tdlr_Windows_64bit.zip
 
     steps:
       - uses: actions/checkout@v4
@@ -51,9 +52,9 @@ jobs:
 
       - name: Install cross
         if: matrix.cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+        uses: taiki-e/install-action@cross
 
-      - name: Create .env file
+      - name: Create .env
         shell: bash
         run: |
           echo "TG_API_ID=${{ secrets.TG_API_ID }}" >> .env
@@ -63,47 +64,35 @@ jobs:
         if: matrix.cross
         run: cross build --release --target ${{ matrix.target }}
 
-      - name: Build (native)
+      - name: Build
         if: ${{ !matrix.cross }}
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar -czvf ../../../tdlr_${{ matrix.name }}.tar.gz tdlr
+      - name: Package (tar.gz)
+        if: runner.os != 'Windows'
+        run: tar -czvf ${{ matrix.artifact }} -C target/${{ matrix.target }}/release tdlr
 
-      - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          Compress-Archive -Path target/${{ matrix.target }}/release/tdlr.exe -DestinationPath tdlr_${{ matrix.name }}.zip
+      - name: Package (zip)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path target/${{ matrix.target }}/release/tdlr.exe -DestinationPath ${{ matrix.artifact }}
 
-      - name: Upload artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: tdlr_${{ matrix.name }}
-          path: tdlr_${{ matrix.name }}.${{ matrix.archive }}
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
 
   release:
-    name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: dist
+          merge-multiple: true
 
-      - name: List artifacts
-        run: find artifacts -type f
-
-      - name: Create Release
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: dist/*
           generate_release_notes: true
