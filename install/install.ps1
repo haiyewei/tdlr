@@ -3,10 +3,9 @@ param(
     [Boolean]$Proxy = $False
 )
 
-
 $Owner = "haiyewei"
 $Repo = "tdlr"
-$Location = "$Env:SystemDrive\tdl"
+$Location = "$Env:SystemDrive\tdlr"
 
 $ErrorActionPreference = "Stop"
 
@@ -25,18 +24,12 @@ if ($Proxy)
     Write-Host "Using GitHub proxy: $PROXY_PREFIX" -ForegroundColor Blue
 }
 
-# Set download ARCH based on system architecture
+# Set download ARCH based on system architecture (only 64bit supported)
 $Arch = ""
 switch ($env:PROCESSOR_ARCHITECTURE)
 {
     "AMD64" {
         $Arch = "64bit"
-    }
-    "x86" {
-        $Arch = "32bit"
-    }
-    "ARM" {
-        $Arch = "arm64"
     }
     default {
         Write-Host "Unsupported system architecture: $env:PROCESSOR_ARCHITECTURE" -ForegroundColor Red
@@ -57,16 +50,16 @@ Write-Host "Downloading $Repo from $URL" -ForegroundColor Blue
 
 # download and extract
 Invoke-WebRequest -Uri $URL -OutFile "$Repo.zip"
-# test zip path
 if (-not(Test-Path "$Repo.zip"))
 {
     Write-Host "Download $URL failed" -ForegroundColor Red
     exit 1
 }
-# only extract tdl.exe to $LOCATION , add to PATH and remove zip file
+
+# extract to $LOCATION
 Expand-Archive -Path "$Repo.zip" -DestinationPath "$Location" -Force
 
-# if $LOCATION has not been added to PATH yet, add it
+# add to PATH if not already
 $PathEnv = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
 if (-not($PathEnv -like "*$Location*"))
 {
@@ -74,21 +67,13 @@ if (-not($PathEnv -like "*$Location*"))
 
     $NewPath = $PathEnv + ";$Location"
     [Environment]::SetEnvironmentVariable("Path", $NewPath, [EnvironmentVariableTarget]::Machine)
-    # update current process' PATH
     [Environment]::SetEnvironmentVariable("Path", $NewPath, [EnvironmentVariableTarget]::Process)
 
-    Write-Host "Note: Updates to PATH might not be visible until you restart your terminal application or reboot machine" -ForegroundColor Yellow
+    Write-Host "Note: Updates to PATH might not be visible until you restart your terminal" -ForegroundColor Yellow
 }
+
 # remove zip file
 Remove-Item "$Repo.zip"
 
-# test if installation is successful, and print instructions
-if (-not(Get-Command $Repo -ErrorAction SilentlyContinue))
-{
-    Write-Host "Installation failed" -ForegroundColor Red
-    exit 1
-}
-
 Write-Host "$Repo installed successfully! Location: $Location" -ForegroundColor Green
-Write-Host "Run '$Repo' to get started" -ForegroundColor Green
-Write-Host "To get started with tdl, please visit https://docs.iyear.me/tdl" -ForegroundColor Green
+Write-Host "Run '$Repo --help' to get started" -ForegroundColor Green

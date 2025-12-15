@@ -44,7 +44,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-
 # Set OS based on system
 case $(uname -s) in
     Linux)
@@ -54,7 +53,7 @@ case $(uname -s) in
         OS="MacOS"
         ;;
     *)
-        echo "Unsupported OS: $OS"
+        echo_red "Unsupported OS: $(uname -s)"
         exit 1
         ;;
 esac
@@ -64,23 +63,11 @@ case $(uname -m) in
     x86_64)
         ARCH="64bit"
         ;;
-    i686)
-        ARCH="32bit"
-        ;;
-    armv5*)
-        ARCH="armv5"
-        ;;
-    armv6*)
-        ARCH="armv6"
-        ;;
-    armv7*)
-        ARCH="armv7"
-        ;;
     arm64|aarch64*)
         ARCH="arm64"
         ;;
     *)
-        echo "Unsupported architecture: $ARCH"
+        echo_red "Unsupported architecture: $(uname -m)"
         exit 1
         ;;
 esac
@@ -100,5 +87,4 @@ wget -q --show-progress -O - "$URL" | tar -xz && \
   mv $REPO $LOCATION/$REPO && \
   chmod +x $LOCATION/$REPO && \
   echo_green "$REPO installed successfully! Location: $LOCATION/$REPO" && \
-  echo_green "Run '$REPO' to get started" && \
-  echo_green "To get started with tdl, please visit https://docs.iyear.me/tdl"
+  echo_green "Run '$REPO --help' to get started"
