@@ -107,12 +107,12 @@ pub async fn upload_media_group(
 
         // Build InputMedia using high-level API
         // Caption only on first media (shows as album caption)
-        let mut media = InputMedia::new();
-        if i == 0 {
-            if let Some(cap) = caption {
-                media = media.caption(cap);
-            }
-        }
+        // Use html() to parse HTML formatting
+        let mut media = if i == 0 && caption.is_some() {
+            InputMedia::new().html(caption.unwrap())
+        } else {
+            InputMedia::new()
+        };
 
         // Set reply_to only on first media
         if i == 0 {

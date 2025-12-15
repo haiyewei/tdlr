@@ -80,7 +80,12 @@ pub async fn upload_file(
         .unwrap_or("")
         .to_lowercase();
 
-    let mut msg = InputMessage::default();
+    // Use html() if caption provided, otherwise default
+    let mut msg = if let Some(cap) = caption {
+        InputMessage::new().html(cap)
+    } else {
+        InputMessage::default()
+    };
 
     // Use photo for images, video for videos, document for others
     if is_photo_ext(&ext) {
@@ -95,10 +100,6 @@ pub async fn upload_file(
         });
     } else {
         msg = msg.document(uploaded);
-    }
-
-    if let Some(cap) = caption {
-        msg = msg.text(cap);
     }
 
     if let Some(tid) = topic_id {

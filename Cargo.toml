@@ -17,7 +17,7 @@ clap = { version = "4.5.53", features = ["derive", "env", "color"] }
 colored = "2.1"
 evalexpr = "11.3"
 anyhow = "1.0.100"
-grammers-client = "0.8.1"
+grammers-client = { version = "0.8.1", features = ["html"] }
 grammers-session = "0.8.0"
 grammers-mtsender = "0.8.1"
 grammers-tl-types = "0.8.0"
