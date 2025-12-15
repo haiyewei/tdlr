@@ -30,7 +30,7 @@ jobs:
             artifact: tdlr_Linux_arm64.tar.gz
             cross: true
           - name: macOS-x86_64
-            os: macos-13
+            os: macos-15
             target: x86_64-apple-darwin
             artifact: tdlr_MacOS_64bit.tar.gz
           - name: macOS-aarch64
