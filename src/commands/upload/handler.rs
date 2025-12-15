@@ -179,11 +179,6 @@ pub async fn upload_media_groups(
     // Media groups are sent sequentially to maintain order
     for (batch_idx, batch) in media_files.chunks(MAX_MEDIA_GROUP_SIZE).enumerate() {
         let batch_paths: Vec<&std::path::Path> = batch.iter().map(|f| f.path.as_path()).collect();
-        // For media groups, apply the same caption to all items if provided
-        let batch_captions: Option<Vec<String>> = ctx
-            .caption
-            .as_ref()
-            .map(|c| batch.iter().map(|_| c.clone()).collect());
 
         output::print_group_progress(batch_idx, total_batches, batch.len());
 
@@ -192,7 +187,7 @@ pub async fn upload_media_groups(
             &batch_paths,
             &chat,
             ctx.topic,
-            batch_captions.as_ref().map(|v| v.as_slice()),
+            ctx.caption.as_deref(),
         )
         .await
         {

@@ -1,14 +1,16 @@
 //! Single file upload
 
 use super::chat::ResolvedChat;
+use super::mime::{is_photo_ext, is_video_ext};
 use anyhow::Result;
-use grammers_client::types::Message;
+use grammers_client::types::{Attribute, Message};
 use grammers_client::{Client, InputMessage};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, ReadBuf};
 
@@ -68,12 +70,33 @@ pub async fn upload_file(
     };
 
     let uploaded = client
-        .upload_stream(&mut reader, file_size as usize, file_name)
+        .upload_stream(&mut reader, file_size as usize, file_name.clone())
         .await?;
     pb_arc.finish();
 
+    let ext = file_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
     let mut msg = InputMessage::default();
-    msg = msg.document(uploaded);
+
+    // Use photo for images, video for videos, document for others
+    if is_photo_ext(&ext) {
+        msg = msg.photo(uploaded);
+    } else if is_video_ext(&ext) {
+        msg = msg.document(uploaded).attribute(Attribute::Video {
+            round_message: false,
+            supports_streaming: true,
+            duration: Duration::from_secs(0),
+            w: 0,
+            h: 0,
+        });
+    } else {
+        msg = msg.document(uploaded);
+    }
+
     if let Some(cap) = caption {
         msg = msg.text(cap);
     }

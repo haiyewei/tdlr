@@ -48,7 +48,7 @@ pub async fn upload_media_group(
     file_paths: &[&Path],
     chat: &ResolvedChat,
     topic_id: Option<i32>,
-    captions: Option<&[String]>,
+    caption: Option<&str>,
 ) -> Result<usize> {
     if file_paths.is_empty() {
         bail!("No files to upload");
@@ -105,13 +105,14 @@ pub async fn upload_media_group(
             .unwrap_or("")
             .to_lowercase();
 
-        let caption = captions
-            .and_then(|c| c.get(i))
-            .map(|s| s.as_str())
-            .unwrap_or("");
-
         // Build InputMedia using high-level API
-        let mut media = InputMedia::new().caption(caption);
+        // Caption only on first media (shows as album caption)
+        let mut media = InputMedia::new();
+        if i == 0 {
+            if let Some(cap) = caption {
+                media = media.caption(cap);
+            }
+        }
 
         // Set reply_to only on first media
         if i == 0 {
