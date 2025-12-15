@@ -60,13 +60,14 @@ jobs:
           echo "TG_API_ID=${{ secrets.TG_API_ID }}" >> .env
           echo "TG_API_HASH=${{ secrets.TG_API_HASH }}" >> .env
 
-      - name: Build (cross)
-        if: matrix.cross
-        run: cross build --release --target ${{ matrix.target }}
-
       - name: Build
-        if: ${{ !matrix.cross }}
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
 
       - name: Package (tar.gz)
         if: runner.os != 'Windows'
