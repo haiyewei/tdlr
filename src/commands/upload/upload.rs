@@ -1,11 +1,12 @@
 //! Upload command entry point
 
-use super::file::{collect_files, FileFilter};
+use super::file::collect_files;
 use super::handler::{
     remove_files, upload_media_groups, upload_single_files, UploadContext, UploadStats,
 };
 use super::output;
 use crate::telegram::{pool, SessionManager};
+use crate::utils::ExtFilter;
 use anyhow::{bail, Result};
 
 /// Default concurrent upload count (max allowed by Telegram)
@@ -42,7 +43,7 @@ pub async fn run(
     }
 
     // Build file filter and collect files
-    let filter = FileFilter::new(include, exclude);
+    let filter = ExtFilter::new(include, exclude);
     let (files, initial_failed) = collect_files(&paths, &filter);
 
     if files.is_empty() {

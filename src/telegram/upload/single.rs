@@ -2,10 +2,11 @@
 
 use super::chat::ResolvedChat;
 use super::mime::{is_photo_ext, is_video_ext};
+use crate::utils::create_shared_progress_bar;
 use anyhow::Result;
 use grammers_client::types::{Attribute, Message};
 use grammers_client::{Client, InputMessage};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::ProgressBar;
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -18,6 +19,9 @@ use tokio::io::{AsyncRead, ReadBuf};
 struct ProgressReader {
     inner: File,
     progress: Arc<ProgressBar>,
+    /// Starting offset for progress (used when sharing progress bar)
+    start_offset: u64,
+    /// Bytes read so far in this upload
     bytes_read: u64,
 }
 
@@ -33,7 +37,11 @@ impl AsyncRead for ProgressReader {
             let after = buf.filled().len();
             let read = (after - before) as u64;
             self.bytes_read += read;
-            self.progress.set_position(self.bytes_read);
+            // Set position relative to start_offset
+            self.progress
+                .set_position(self.start_offset + self.bytes_read);
+            // Force redraw for small files
+            self.progress.tick();
         }
         result
     }
@@ -47,6 +55,18 @@ pub async fn upload_file(
     topic_id: Option<i32>,
     caption: Option<&str>,
 ) -> Result<Message> {
+    upload_file_with_progress(client, file_path, chat, topic_id, caption, None).await
+}
+
+/// Upload a single file to Telegram with optional external progress bar
+pub async fn upload_file_with_progress(
+    client: &Client,
+    file_path: &Path,
+    chat: &ResolvedChat,
+    topic_id: Option<i32>,
+    caption: Option<&str>,
+    external_progress: Option<Arc<ProgressBar>>,
+) -> Result<Message> {
     let file = File::open(file_path).await?;
     let file_size = file.metadata().await?.len();
     let file_name = file_path
@@ -55,24 +75,30 @@ pub async fn upload_file(
         .unwrap_or("file")
         .to_string();
 
-    let pb = ProgressBar::new(file_size);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")?
-            .progress_chars("█▓░"),
-    );
+    // Use external progress bar or create our own
+    let (pb_arc, is_external, start_offset) = if let Some(ext_pb) = external_progress {
+        // Get current position as start offset for upload phase
+        let offset = ext_pb.position();
+        (ext_pb, true, offset)
+    } else {
+        (create_shared_progress_bar(file_size)?, false, 0)
+    };
 
-    let pb_arc = Arc::new(pb);
     let mut reader = ProgressReader {
         inner: file,
         progress: Arc::clone(&pb_arc),
+        start_offset,
         bytes_read: 0,
     };
 
     let uploaded = client
         .upload_stream(&mut reader, file_size as usize, file_name.clone())
         .await?;
-    pb_arc.finish();
+
+    // Only finish if we created the progress bar
+    if !is_external {
+        pb_arc.finish();
+    }
 
     let ext = file_path
         .extension()
@@ -101,6 +127,24 @@ pub async fn upload_file(
     } else {
         msg = msg.document(uploaded);
     }
+
+    if let Some(tid) = topic_id {
+        msg = msg.reply_to(Some(tid));
+    }
+
+    let message = client.send_message(chat.input_peer.clone(), msg).await?;
+
+    Ok(message)
+}
+
+/// Send a text message to Telegram
+pub async fn send_text(
+    client: &Client,
+    text: &str,
+    chat: &ResolvedChat,
+    topic_id: Option<i32>,
+) -> Result<Message> {
+    let mut msg = InputMessage::new().html(text);
 
     if let Some(tid) = topic_id {
         msg = msg.reply_to(Some(tid));

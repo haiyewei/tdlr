@@ -1,6 +1,8 @@
 //! Command implementations
 
 mod auth;
+mod download;
+mod forward;
 mod hello;
 mod upload;
 mod version;
@@ -27,6 +29,29 @@ pub async fn execute(command: Commands) -> Result<()> {
                 args.caption,
                 args.to,
                 args.group,
+            )
+            .await
+        }
+        Commands::Download(args) => {
+            download::run(
+                args.url,
+                args.path,
+                args.include,
+                args.exclude,
+                args.template,
+                args.account,
+            )
+            .await
+        }
+        Commands::Forward(args) => {
+            forward::run(
+                args.from,
+                args.from_chat,
+                args.to,
+                args.mode,
+                args.topic,
+                args.account,
+                args.drop_author,
             )
             .await
         }

@@ -1,5 +1,14 @@
 //! Common utility functions
 
+pub mod filter;
+pub mod link;
+pub mod output;
+pub mod progress;
+
+pub use filter::{get_extension, ExtFilter};
+pub use link::{parse_link, parse_source, ChatIdentifier, TelegramLink};
+pub use progress::{create_progress_bar, create_progress_bar_opt, create_shared_progress_bar};
+
 /// Format file size to human readable string
 pub fn format_size(size: u64) -> String {
     if size < 1024 {

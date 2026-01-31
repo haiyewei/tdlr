@@ -1,6 +1,8 @@
 //! Root CLI and Commands enum
 
 use super::auth::AuthCommands;
+use super::download::DownloadArgs;
+use super::forward::ForwardArgs;
 use super::upload::UploadArgs;
 use clap::{Parser, Subcommand};
 
@@ -27,4 +29,8 @@ pub enum Commands {
     Auth(AuthCommands),
     /// Upload files/dirs to Telegram
     Upload(UploadArgs),
+    /// Download files from Telegram message URLs
+    Download(DownloadArgs),
+    /// Forward messages from one chat to another
+    Forward(ForwardArgs),
 }

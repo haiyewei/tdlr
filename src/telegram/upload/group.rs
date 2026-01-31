@@ -5,7 +5,7 @@ use super::mime::{is_photo_ext, is_video_ext};
 use anyhow::{bail, Result};
 use grammers_client::types::Attribute;
 use grammers_client::{Client, InputMedia};
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -76,16 +76,19 @@ pub async fn upload_media_group(
             .unwrap_or("file")
             .to_string();
 
-        let pb = multi.add(ProgressBar::new(file_size));
+        let pb =
+            ProgressBar::with_draw_target(Some(file_size), ProgressDrawTarget::stderr_with_hz(10));
         pb.set_style(
             ProgressStyle::default_bar()
                 .template(&format!(
-                    "[{}/{}]   [{{bar:40.cyan/blue}}] {{bytes}}/{{total_bytes}}",
+                    "  {{spinner:.green}} [{}/{}] [{{bar:40.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})",
                     i + 1,
                     file_paths.len()
                 ))?
                 .progress_chars("█▓░"),
         );
+        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+        let pb = multi.add(pb);
 
         let pb_arc = Arc::new(pb);
         let mut reader = ProgressReader {

@@ -3,6 +3,11 @@
 use colored::Colorize;
 use std::path::Path;
 
+pub use crate::utils::output::{
+    print_account_header, print_account_not_authorized, print_failure,
+    print_success_msg_id as print_success,
+};
+
 /// Print upload progress header
 pub fn print_progress(index: usize, total: usize, path: &Path) {
     println!(
@@ -14,33 +19,9 @@ pub fn print_progress(index: usize, total: usize, path: &Path) {
     );
 }
 
-/// Print upload success
-pub fn print_success(msg_id: i32) {
-    println!("{} Uploaded (msg_id: {})", "✓".green(), msg_id);
-}
-
-/// Print upload failure
-pub fn print_failure(error: &str) {
-    println!("{} Failed: {}", "✗".red(), error.red());
-}
-
 /// Print upload summary
 pub fn print_summary(success: usize, failed: usize) {
-    println!();
-    if failed == 0 {
-        println!(
-            "{} All {} file(s) uploaded successfully!",
-            "✓".green(),
-            success
-        );
-    } else {
-        println!(
-            "{}: {} success, {} failed",
-            "Summary".cyan(),
-            success.to_string().green(),
-            failed.to_string().red()
-        );
-    }
+    crate::utils::output::print_summary("file(s) uploaded", success, failed);
 }
 
 /// Print media group progress
@@ -62,20 +43,6 @@ pub fn print_group_success(count: usize) {
 /// Print media group failure
 pub fn print_group_failure(error: &str) {
     println!("{} Media group failed: {}", "✗".red(), error);
-}
-
-/// Print account header
-pub fn print_account_header(name: &str, user_id: i64) {
-    println!("\n{} Account: {} ({})", "→".cyan(), name, user_id);
-}
-
-/// Print account not authorized warning
-pub fn print_account_not_authorized(user_id: i64) {
-    println!(
-        "{} Account {} not authorized, skipping",
-        "⚠".yellow(),
-        user_id
-    );
 }
 
 /// Print skipped files warning

@@ -10,9 +10,13 @@ pub struct ResolvedChat {
     pub input_peer: tl::enums::InputPeer,
     pub name: String,
     pub peer: Option<Peer>,
+    /// Whether the chat has a public username
+    pub is_public: bool,
+    /// Whether forwarding is restricted (noforwards flag)
+    pub noforwards: bool,
 }
 
-/// Resolve chat from string (username, ID, or special values)
+/// Resolve chat from string (username, ID, link, or special values)
 pub async fn resolve_chat(client: &Client, chat_str: &str) -> Result<ResolvedChat> {
     let chat_str = chat_str.trim();
 
@@ -22,7 +26,14 @@ pub async fn resolve_chat(client: &Client, chat_str: &str) -> Result<ResolvedCha
             input_peer: tl::types::InputPeerSelf {}.into(),
             name: "Saved Messages".to_string(),
             peer: None,
+            is_public: false,
+            noforwards: false,
         });
+    }
+
+    // Handle Telegram links
+    if chat_str.starts_with("https://t.me/") || chat_str.starts_with("http://t.me/") {
+        return resolve_from_link(client, chat_str).await;
     }
 
     // Try to resolve as username first (starts with @)
@@ -40,6 +51,37 @@ pub async fn resolve_chat(client: &Client, chat_str: &str) -> Result<ResolvedCha
     resolve_username(client, chat_str).await
 }
 
+/// Resolve chat from Telegram link
+async fn resolve_from_link(client: &Client, link: &str) -> Result<ResolvedChat> {
+    // Parse the link path
+    let path = link
+        .trim_start_matches("https://t.me/")
+        .trim_start_matches("http://t.me/");
+
+    // Handle private channel links: c/CHANNEL_ID/MESSAGE_ID
+    if path.starts_with("c/") {
+        let parts: Vec<&str> = path.split('/').collect();
+        if parts.len() >= 2 {
+            if let Ok(channel_id) = parts[1].parse::<i64>() {
+                // Convert to -100 format and resolve by ID
+                let full_id = -1_000_000_000_000 - channel_id;
+                return resolve_by_id(client, full_id).await;
+            }
+        }
+        bail!("Invalid private channel link: {}", link);
+    }
+
+    // Handle public channel/user links: @username/MESSAGE_ID or username/MESSAGE_ID
+    let username = path.split('/').next().unwrap_or(path);
+    let username = username.trim_start_matches('@');
+
+    if username.is_empty() {
+        bail!("Invalid link: {}", link);
+    }
+
+    resolve_username(client, username).await
+}
+
 /// Resolve chat by username using high-level API
 async fn resolve_username(client: &Client, username: &str) -> Result<ResolvedChat> {
     let peer = client
@@ -49,11 +91,14 @@ async fn resolve_username(client: &Client, username: &str) -> Result<ResolvedCha
 
     let name = peer.name().unwrap_or("Unknown").to_string();
     let input_peer = peer_to_input_peer(&peer);
+    let (is_public, noforwards) = extract_chat_flags(&peer);
 
     Ok(ResolvedChat {
         input_peer,
         name,
         peer: Some(peer),
+        is_public,
+        noforwards,
     })
 }
 
@@ -80,16 +125,56 @@ async fn resolve_by_id(client: &Client, id: i64) -> Result<ResolvedChat> {
         if peer_id == target_id || peer_id == id || peer_id == id.abs() {
             let name = peer.name().unwrap_or("Unknown").to_string();
             let input_peer = peer_to_input_peer(peer);
+            let (is_public, noforwards) = extract_chat_flags(peer);
 
             return Ok(ResolvedChat {
                 input_peer,
                 name,
                 peer: Some(peer.clone()),
+                is_public,
+                noforwards,
             });
         }
     }
 
     bail!("Chat with ID {} not found in dialogs", id);
+}
+
+/// Extract is_public and noforwards flags from Peer
+fn extract_chat_flags(peer: &Peer) -> (bool, bool) {
+    match peer {
+        Peer::User(user) => {
+            // Users are considered "public" if they have a username
+            let has_username = match &user.raw {
+                tl::enums::User::User(u) => u.username.is_some(),
+                tl::enums::User::Empty(_) => false,
+            };
+            (has_username, false)
+        }
+        Peer::Group(group) => match &group.raw {
+            tl::enums::Chat::Channel(ch) => {
+                let has_username = ch.username.is_some()
+                    || ch
+                        .usernames
+                        .as_ref()
+                        .map(|v| !v.is_empty())
+                        .unwrap_or(false);
+                (has_username, ch.noforwards)
+            }
+            tl::enums::Chat::ChannelForbidden(_) => (false, true),
+            _ => (false, false),
+        },
+        Peer::Channel(channel) => {
+            let has_username = channel.raw.username.is_some()
+                || channel
+                    .raw
+                    .usernames
+                    .as_ref()
+                    .map(|v| !v.is_empty())
+                    .unwrap_or(false);
+            (has_username, channel.raw.noforwards)
+        }
+    }
 }
 
 /// Convert Peer to InputPeer
