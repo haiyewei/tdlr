@@ -80,7 +80,58 @@ impl DocumentInfo {
                     None
                 }
             })
-            .unwrap_or_else(|| format!("{}.bin", doc.id));
+            .unwrap_or_else(|| {
+                let mut is_video = false;
+                let mut is_audio = false;
+                for attr in &doc.attributes {
+                    match attr {
+                        tl::enums::DocumentAttribute::Video(_) => is_video = true,
+                        tl::enums::DocumentAttribute::Audio(_) => is_audio = true,
+                        _ => {}
+                    }
+                }
+
+                let ext = if is_video {
+                    "mp4"
+                } else if is_audio {
+                    if doc.mime_type == "audio/ogg" {
+                        "ogg"
+                    } else {
+                        "mp3"
+                    }
+                } else {
+                    match doc.mime_type.as_str() {
+                        "video/mp4" => "mp4",
+                        "video/x-matroska" => "mkv",
+                        "video/quicktime" => "mov",
+                        "video/webm" => "webm",
+                        "image/jpeg" => "jpg",
+                        "image/png" => "png",
+                        "image/gif" => "gif",
+                        "image/webp" => "webp",
+                        "audio/mpeg" => "mp3",
+                        "audio/ogg" | "audio/opus" => "ogg",
+                        "audio/m4a" | "audio/mp4" => "m4a",
+                        "audio/x-wav" | "audio/wav" => "wav",
+                        "application/pdf" => "pdf",
+                        "application/zip" => "zip",
+                        "application/x-rar-compressed" => "rar",
+                        _ => {
+                            let parts: Vec<&str> = doc.mime_type.split('/').collect();
+                            if parts.len() == 2
+                                && !parts[1].is_empty()
+                                && parts[1].len() <= 5
+                                && parts[1].chars().all(|c| c.is_ascii_alphanumeric())
+                            {
+                                parts[1]
+                            } else {
+                                "bin"
+                            }
+                        }
+                    }
+                };
+                format!("{}.{}", doc.id, ext)
+            });
 
         Self {
             id: doc.id,

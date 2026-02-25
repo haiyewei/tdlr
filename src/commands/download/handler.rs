@@ -94,7 +94,7 @@ pub async fn download_link(
     // Download each content
     for content in content_list {
         match content {
-            MessageContent::Photo(photo) => {
+            MessageContent::Photo(photo, _) => {
                 // Photos are always jpg
                 if !ctx.filter.should_include("jpg") {
                     output::print_skipped("photo", "jpg");
@@ -120,7 +120,7 @@ pub async fn download_link(
                     }
                 }
             }
-            MessageContent::Document(doc) => {
+            MessageContent::Document(doc, _) => {
                 let info = DocumentInfo::from_document(&doc);
                 let ext = get_extension(&info.filename);
 

@@ -7,8 +7,8 @@ use grammers_tl_types as tl;
 
 /// Content extracted from a message
 pub enum MessageContent {
-    Photo(tl::types::Photo),
-    Document(tl::types::Document),
+    Photo(tl::types::Photo, String),
+    Document(tl::types::Document, String),
     /// Text message content
     Text(String),
 }
@@ -72,7 +72,7 @@ pub async fn fetch_message(
 
             if should_include {
                 if let Some(media) = m.media {
-                    extract_media(&media, &mut content_list);
+                    extract_media(&media, &m.message, &mut content_list);
                 } else if !m.message.is_empty() {
                     // Text-only message
                     content_list.push(MessageContent::Text(m.message.clone()));
@@ -124,16 +124,20 @@ fn extract_messages(result: tl::enums::messages::Messages) -> Vec<tl::enums::Mes
 }
 
 /// Extract media from MessageMedia
-fn extract_media(media: &tl::enums::MessageMedia, content_list: &mut Vec<MessageContent>) {
+fn extract_media(
+    media: &tl::enums::MessageMedia,
+    caption: &str,
+    content_list: &mut Vec<MessageContent>,
+) {
     match media {
         tl::enums::MessageMedia::Photo(photo_media) => {
             if let Some(tl::enums::Photo::Photo(photo)) = &photo_media.photo {
-                content_list.push(MessageContent::Photo(photo.clone()));
+                content_list.push(MessageContent::Photo(photo.clone(), caption.to_string()));
             }
         }
         tl::enums::MessageMedia::Document(doc_media) => {
             if let Some(tl::enums::Document::Document(doc)) = &doc_media.document {
-                content_list.push(MessageContent::Document(doc.clone()));
+                content_list.push(MessageContent::Document(doc.clone(), caption.to_string()));
             }
         }
         _ => {}
