@@ -4,8 +4,7 @@ use anyhow::Result;
 use colored::Colorize;
 
 pub fn run() -> Result<()> {
-    println!("{}: {}", "Version".cyan(), env!("CARGO_PKG_VERSION"));
-    println!("{}: {}", "BuildDate".cyan(), env!("BUILD_DATE"));
+    println!("{}: {}", "Version".cyan(), env!("TDLR_VERSION"));
     println!("{}: {}", "Rustc".cyan(), env!("RUSTC_VERSION"));
     println!(
         "{}: {}/{}",

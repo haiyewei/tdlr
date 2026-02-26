@@ -67,7 +67,7 @@ pub extern "system" fn Java_com_tdlr_TdlrNative_getVersion<'local>(
     mut env: JNIEnv<'local>,
     _class: JClass<'local>,
 ) -> jstring {
-    let version = env!("CARGO_PKG_VERSION");
+    let version = env!("TDLR_VERSION");
     let output = env
         .new_string(version)
         .expect("Failed to create Java string");

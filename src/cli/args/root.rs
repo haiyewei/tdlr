@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "tdlr")]
-#[command(author, version, about = "TDLR - Telegram Downloader CLI")]
+#[command(author, version = env!("TDLR_VERSION"), about = "TDLR - Telegram Downloader CLI")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
