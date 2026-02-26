@@ -67,18 +67,32 @@ irm https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install_daily.p
 
 - [Rust 和 Cargo](https://rustup.rs/) (>= 1.70.0)
 
-### 编译步骤
+### 编译与安装
+
+项目中内置了自动化编译和安装的脚本。
+
+#### Linux / macOS
 
 ```bash
 # 1. 克隆代码仓库
 git clone https://github.com/haiyewei/tdlr.git
 cd tdlr
 
-# 2. 编译发布版本
-cargo build --release
+# 2. 运行本地安装脚本进行编译并安装到设备
+bash install/install_local.sh
+```
 
-# 3. 运行或将其加入 PATH 系统路径
-./target/release/tdlr --help
+#### Windows (PowerShell)
+
+**请以管理员身份运行 PowerShell：**
+
+```powershell
+# 1. 克隆代码仓库
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+
+# 2. 运行本地安装脚本进行编译并安装到设备
+.\install\install_local.ps1
 ```
 
 ---
