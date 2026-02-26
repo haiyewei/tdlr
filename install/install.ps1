@@ -32,7 +32,7 @@ switch ($env:PROCESSOR_ARCHITECTURE)
         $Arch = "64bit"
     }
     default {
-        Write-Host "Unsupported system architecture: $env:PROCESSOR_ARCHITECTURE" -ForegroundColor Red
+        Write-Host "Unsupported system architecture: $env:PROCESSOR_ARCHITECTURE. Only x86_64 is supported on Windows." -ForegroundColor Red
         exit 1
     }
 }
@@ -40,7 +40,13 @@ switch ($env:PROCESSOR_ARCHITECTURE)
 # set version
 if (!$Version)
 {
-    $Version = (Invoke-RestMethod -Uri "https://api.github.com/repos/$Owner/$Repo/releases/latest").tag_name
+    Write-Host "Fetching latest version..." -ForegroundColor Blue
+    try {
+        $Version = (Invoke-RestMethod -Uri "https://api.github.com/repos/$Owner/$Repo/releases/latest").tag_name
+    } catch {
+        Write-Host "Failed to fetch latest version from GitHub API" -ForegroundColor Red
+        exit 1
+    }
 }
 Write-Host "Target version: $Version" -ForegroundColor Blue
 
@@ -48,16 +54,34 @@ Write-Host "Target version: $Version" -ForegroundColor Blue
 $URL = "${PROXY_PREFIX}https://github.com/$Owner/$Repo/releases/download/$Version/${Repo}_Windows_$Arch.zip"
 Write-Host "Downloading $Repo from $URL" -ForegroundColor Blue
 
-# download and extract
-Invoke-WebRequest -Uri $URL -OutFile "$Repo.zip"
-if (-not(Test-Path "$Repo.zip"))
-{
-    Write-Host "Download $URL failed" -ForegroundColor Red
-    exit 1
-}
+# Create temporary file for download
+$TempFile = [System.IO.Path]::GetTempFileName() + ".zip"
 
-# extract to $LOCATION
-Expand-Archive -Path "$Repo.zip" -DestinationPath "$Location" -Force
+try {
+    # download and extract
+    Invoke-WebRequest -Uri $URL -OutFile $TempFile -UseBasicParsing
+    
+    if (-not(Test-Path $TempFile))
+    {
+        Write-Host "Download $URL failed" -ForegroundColor Red
+        exit 1
+    }
+
+    # ensure $LOCATION exists
+    if (-not (Test-Path $Location)) {
+        New-Item -ItemType Directory -Path $Location -Force | Out-Null
+    }
+
+    # extract to $LOCATION
+    Write-Host "Extracting to $Location..." -ForegroundColor Blue
+    Expand-Archive -Path $TempFile -DestinationPath $Location -Force
+}
+finally {
+    # remove temp file
+    if (Test-Path $TempFile) {
+        Remove-Item $TempFile -Force
+    }
+}
 
 # add to PATH if not already
 $PathEnv = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
@@ -72,8 +96,6 @@ if (-not($PathEnv -like "*$Location*"))
     Write-Host "Note: Updates to PATH might not be visible until you restart your terminal" -ForegroundColor Yellow
 }
 
-# remove zip file
-Remove-Item "$Repo.zip"
-
 Write-Host "$Repo installed successfully! Location: $Location" -ForegroundColor Green
 Write-Host "Run '$Repo --help' to get started" -ForegroundColor Green
+

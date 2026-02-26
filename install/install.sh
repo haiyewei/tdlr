@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 OWNER="haiyewei"
 REPO="tdlr"
 LOCATION="/usr/local/bin"
@@ -13,12 +15,6 @@ echo_red() {
 echo_blue() {
     echo -e "\033[34m$1\033[0m"
 }
-
-# Check if script is run as root
-if [[ $EUID -ne 0 ]]; then
-   echo_red "This script must be run as root"
-   exit 1
-fi
 
 PROXY=""
 VERSION=""
@@ -74,7 +70,12 @@ esac
 
 # get latest version
 if [ -z "$VERSION" ]; then
+    echo_blue "Fetching latest version..."
     VERSION=$(curl --silent "https://api.github.com/repos/$OWNER/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$VERSION" ]; then
+        echo_red "Failed to fetch latest version"
+        exit 1
+    fi
 fi
 echo_blue "Target version: $VERSION"
 
@@ -82,9 +83,39 @@ echo_blue "Target version: $VERSION"
 URL=${PROXY}https://github.com/$OWNER/$REPO/releases/download/$VERSION/${REPO}_${OS}_$ARCH.tar.gz
 echo_blue "Downloading $REPO from $URL"
 
+# Create temporary directory for extraction
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 # download and extract
-wget -q --show-progress -O - "$URL" | tar -xz && \
-  mv $REPO $LOCATION/$REPO && \
-  chmod +x $LOCATION/$REPO && \
-  echo_green "$REPO installed successfully! Location: $LOCATION/$REPO" && \
-  echo_green "Run '$REPO --help' to get started"
+if command -v wget >/dev/null 2>&1; then
+    wget -q --show-progress -O "$TMP_DIR/package.tar.gz" "$URL"
+elif command -v curl >/dev/null 2>&1; then
+    curl -L --progress-bar -o "$TMP_DIR/package.tar.gz" "$URL"
+else
+    echo_red "Neither wget nor curl found. Please install one of them."
+    exit 1
+fi
+
+tar -xzf "$TMP_DIR/package.tar.gz" -C "$TMP_DIR"
+
+if [ ! -f "$TMP_DIR/$REPO" ]; then
+    echo_red "Binary $REPO not found in the downloaded package."
+    exit 1
+fi
+
+echo_blue "Installing to $LOCATION..."
+
+# Move to location, use sudo if necessary
+if [ -w "$LOCATION" ]; then
+    mv "$TMP_DIR/$REPO" "$LOCATION/$REPO"
+    chmod +x "$LOCATION/$REPO"
+else
+    echo_blue "Requires root privileges to install to $LOCATION. Prompting for sudo..."
+    sudo mv "$TMP_DIR/$REPO" "$LOCATION/$REPO"
+    sudo chmod +x "$LOCATION/$REPO"
+fi
+
+echo_green "$REPO installed successfully! Location: $LOCATION/$REPO"
+echo_green "Run '$REPO --help' to get started"
+
