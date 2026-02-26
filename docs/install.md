@@ -1,6 +1,14 @@
 # 安装
 
-## Linux / macOS
+你可以根据需要选择不同的安装方式：**正式版**（推荐）、**每日构建版**（尝鲜新功能）或**本地源码编译**。
+
+---
+
+## 1. 正式版安装 (Stable Release)
+
+最稳定的发行版本，适合生产和日常稳定使用。
+
+### Linux / macOS
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install.sh | sudo bash
@@ -16,9 +24,9 @@ curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install.s
 curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install.sh | sudo bash -s -- --proxy
 ```
 
-## Windows (PowerShell)
+### Windows (PowerShell)
 
-以管理员身份运行：
+**请以管理员身份运行 PowerShell：**
 
 ```powershell
 irm https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install.ps1 | iex
@@ -29,9 +37,55 @@ irm https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install.ps1 | i
 $Version = "v0.1.0"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install.ps1 | iex
 ```
 
+---
+
+## 2. 每日构建版 (Daily Build)
+
+每天 UTC 0点基于最新代码自动构建的测试版本。包含最新修复和尚在测试的新功能，适合希望尽早体验或参与反馈的用户。
+
+### Linux / macOS
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install_daily.sh | sudo bash
+```
+
+### Windows (PowerShell)
+
+**请以管理员身份运行 PowerShell：**
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/install/install_daily.ps1 | iex
+```
+
+---
+
+## 3. 本地源码编译 (Local Build / Git Clone)
+
+如果你想从源码自行编译 `tdlr`，或者希望参与贡献代码。
+
+### 环境准备
+
+- [Rust 和 Cargo](https://rustup.rs/) (>= 1.70.0)
+
+### 编译步骤
+
+```bash
+# 1. 克隆代码仓库
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+
+# 2. 编译发布版本
+cargo build --release
+
+# 3. 运行或将其加入 PATH 系统路径
+./target/release/tdlr --help
+```
+
+---
+
 ## 手动下载
 
-从 [Releases](https://github.com/haiyewei/tdlr/releases) 下载对应平台的二进制文件：
+如果你不想使用一键脚本，可以从 [Releases](https://github.com/haiyewei/tdlr/releases) 页面手动下载对应平台的二进制文件：
 
 | 平台 | 文件 |
 |------|------|
@@ -41,7 +95,11 @@ $Version = "v0.1.0"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/in
 | macOS ARM64 | `tdlr_MacOS_arm64.tar.gz` |
 | Windows x86_64 | `tdlr_Windows_64bit.zip` |
 
+---
+
 ## 验证安装
+
+无论使用哪种安装方式，完成后可以在终端执行以下命令验证安装：
 
 ```bash
 tdlr --version
