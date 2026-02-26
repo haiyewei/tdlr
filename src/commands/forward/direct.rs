@@ -59,6 +59,8 @@ pub async fn forward_direct(
         allow_paid_floodskip: false,
         reply_to: None,
         suggested_post: None,
+        effect: None,
+        schedule_repeat_period: None,
     };
 
     let result = client.invoke(&request).await?;

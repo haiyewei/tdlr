@@ -6,8 +6,6 @@ use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 
-const SESSIONS_DIR: &str = "sessions";
-
 /// Session manager for handling multiple accounts
 pub struct SessionManager;
 
@@ -79,10 +77,16 @@ impl SessionManager {
 
     /// Remove account by user_id
     pub fn remove(user_id: i64) -> Result<()> {
-        // Remove session file
-        let session_file = session_path(user_id);
-        if session_file.exists() {
-            fs::remove_file(&session_file)?;
+        // Remove session directory or file
+        let account_dir = sessions_dir().join(user_id.to_string());
+        if account_dir.exists() {
+            let _ = fs::remove_dir_all(&account_dir);
+        } else {
+            // Backward compatibility
+            let session_file = sessions_dir().join(format!("{}.session", user_id));
+            if session_file.exists() {
+                let _ = fs::remove_file(&session_file);
+            }
         }
 
         // Remove from accounts.json
@@ -99,23 +103,51 @@ impl SessionManager {
 
 // Internal functions used by other submodules
 
+/// Get tdlr config directory path
+pub fn config_dir() -> PathBuf {
+    if let Some(mut path) = dirs::config_dir() {
+        path.push("tdlr");
+        path
+    } else {
+        PathBuf::from(".")
+    }
+}
+
 /// Get sessions directory path
 pub fn sessions_dir() -> PathBuf {
-    PathBuf::from(SESSIONS_DIR)
+    config_dir().join("sessions")
+}
+
+/// Get accounts metadata file path
+pub fn accounts_file() -> PathBuf {
+    config_dir().join("accounts.json")
+}
+
+/// Get active session id file path
+pub fn active_file() -> PathBuf {
+    config_dir().join(".active")
 }
 
 /// Get session file path by user_id
 pub fn session_path(user_id: i64) -> PathBuf {
-    sessions_dir().join(format!("{}.session", user_id))
+    let dir = sessions_dir().join(user_id.to_string());
+    let _ = fs::create_dir_all(&dir);
+    dir.join(format!("{}.session", user_id))
 }
 
 /// Get session file path by string
 pub fn session_path_str(name: &str) -> PathBuf {
-    sessions_dir().join(format!("{}.session", name))
+    let dir = sessions_dir().join(name);
+    let _ = fs::create_dir_all(&dir);
+    dir.join(format!("{}.session", name))
 }
 
 /// Ensure sessions directory exists
 pub fn ensure_dir() -> Result<()> {
+    let config = config_dir();
+    if !config.exists() {
+        fs::create_dir_all(&config)?;
+    }
     let dir = sessions_dir();
     if !dir.exists() {
         fs::create_dir_all(&dir)?;
@@ -134,10 +166,22 @@ pub fn list_user_ids() -> Result<Vec<i64>> {
         for entry in fs::read_dir(&dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map(|e| e == "session").unwrap_or(false) {
+            if path.is_dir() {
+                if let Some(name) = path.file_name() {
+                    let name_str = name.to_string_lossy();
+                    if !name_str.starts_with("temp_") {
+                        if let Ok(id) = name_str.parse::<i64>() {
+                            let session_file = path.join(format!("{}.session", id));
+                            if session_file.exists() {
+                                ids.push(id);
+                            }
+                        }
+                    }
+                }
+            } else if path.extension().map(|e| e == "session").unwrap_or(false) {
+                // Backward compatibility for root session files
                 if let Some(name) = path.file_stem() {
                     let name_str = name.to_string_lossy();
-                    // Skip temp sessions, parse user_id
                     if !name_str.starts_with("temp_") {
                         if let Ok(id) = name_str.parse::<i64>() {
                             ids.push(id);
@@ -147,6 +191,9 @@ pub fn list_user_ids() -> Result<Vec<i64>> {
             }
         }
     }
+
+    ids.sort();
+    ids.dedup();
 
     Ok(ids)
 }

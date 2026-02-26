@@ -42,7 +42,7 @@ async fn try_import_login(
     tg: &TelegramClient,
     dc_id: i32,
     token: Vec<u8>,
-) -> Result<Option<grammers_client::types::User>> {
+) -> Result<Option<grammers_client::peer::User>> {
     let client = tg.inner();
     let import_request = tl::functions::auth::ImportLoginToken { token };
 
@@ -73,7 +73,7 @@ async fn try_import_login(
                     bail!("2FA required. Use: tdlr auth login add --method phone");
                 }
                 if err_str.contains("AUTH_TOKEN_ALREADY_ACCEPTED") {
-                    tg.set_home_dc_id(dc_id);
+                    tg.set_home_dc_id(dc_id).await;
                     tokio::time::sleep(Duration::from_millis(300)).await;
                     return Ok(Some(tg.get_me().await?));
                 }
@@ -101,7 +101,7 @@ pub async fn login_with_qrcode(
     tg: &TelegramClient,
     api_id: i32,
     api_hash: &str,
-) -> Result<grammers_client::types::User> {
+) -> Result<grammers_client::peer::User> {
     let client = tg.inner();
     println!("\n=== QR Code Login ===");
     println!("Scan the QR code with your Telegram app:");
@@ -223,7 +223,7 @@ async fn handle_success(
     tg: &TelegramClient,
     success: tl::types::auth::LoginTokenSuccess,
     migrated_dc: Option<i32>,
-) -> Result<grammers_client::types::User> {
+) -> Result<grammers_client::peer::User> {
     match success.authorization {
         tl::enums::auth::Authorization::Authorization(auth) => {
             if let tl::enums::User::User(raw_user) = auth.user {
@@ -234,7 +234,7 @@ async fn handle_success(
 
                 // If we migrated to a different DC, update session's home DC
                 if let Some(dc_id) = migrated_dc {
-                    tg.set_home_dc_id(dc_id);
+                    tg.set_home_dc_id(dc_id).await;
                 }
 
                 // Small delay for session sync

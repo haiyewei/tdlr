@@ -3,8 +3,8 @@
 use super::chat::ResolvedChat;
 use super::mime::{is_photo_ext, is_video_ext};
 use anyhow::{bail, Result};
-use grammers_client::types::Attribute;
-use grammers_client::{Client, InputMedia};
+use grammers_client::media::Attribute;
+use grammers_client::{media::InputMedia, Client};
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::Path;
 use std::pin::Pin;
@@ -59,10 +59,7 @@ pub async fn upload_media_group(
     }
 
     // send_album requires Peer, not InputPeer
-    let target_peer = chat
-        .peer
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("Cannot send album to 'me', use single file upload"))?;
+    let target_peer = &chat.input_peer;
 
     let multi = MultiProgress::new();
     let mut media_items: Vec<InputMedia> = Vec::new();

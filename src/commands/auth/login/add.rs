@@ -35,7 +35,7 @@ pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
 
     // Login and get user info
     let (user_id, display_name, username) = {
-        let tg = TelegramClient::new_temp(&temp_name, api_id())?;
+        let tg = TelegramClient::new_temp(&temp_name, api_id()).await?;
 
         let user = if tg.is_authorized().await? {
             println!("{}", "Already logged in!".yellow());

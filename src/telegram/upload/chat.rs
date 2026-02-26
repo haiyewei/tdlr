@@ -1,7 +1,7 @@
 //! Chat resolution utilities
 
 use anyhow::{bail, Result};
-use grammers_client::types::Peer;
+use grammers_client::peer::Peer;
 use grammers_client::Client;
 use grammers_tl_types as tl;
 

@@ -4,8 +4,11 @@ use super::chat::ResolvedChat;
 use super::mime::{is_photo_ext, is_video_ext};
 use crate::utils::create_shared_progress_bar;
 use anyhow::Result;
-use grammers_client::types::{Attribute, Message};
-use grammers_client::{Client, InputMessage};
+use grammers_client::media::Attribute;
+use grammers_client::{
+    message::{InputMessage, Message},
+    Client,
+};
 use indicatif::ProgressBar;
 use std::path::Path;
 use std::pin::Pin;

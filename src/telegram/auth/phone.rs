@@ -9,7 +9,7 @@ use std::time::Duration;
 pub async fn login_with_phone(
     client: &Client,
     api_hash: &str,
-) -> Result<grammers_client::types::User> {
+) -> Result<grammers_client::peer::User> {
     println!("\n=== Phone Login ===");
 
     print!("Enter your phone number (with country code, e.g. +8613800138000): ");

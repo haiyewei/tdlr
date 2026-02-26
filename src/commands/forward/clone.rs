@@ -7,8 +7,8 @@ use crate::telegram::download::{
 use crate::telegram::upload::{send_text, upload_media_group, ResolvedChat};
 use crate::utils::{create_shared_progress_bar, ChatIdentifier, TelegramLink};
 use anyhow::{bail, Result};
-use grammers_client::types::Attribute;
-use grammers_client::{Client, InputMessage};
+use grammers_client::media::Attribute;
+use grammers_client::{message::InputMessage, Client};
 use grammers_tl_types as tl;
 use indicatif::ProgressBar;
 use std::path::PathBuf;
@@ -392,7 +392,7 @@ async fn upload_clone_file(
     external_progress: Option<Arc<ProgressBar>>,
     media_type: CloneMediaType,
     thumb_path: Option<&std::path::Path>,
-) -> Result<grammers_client::types::Message> {
+) -> Result<grammers_client::message::Message> {
     let file = File::open(file_path).await?;
     let file_size = file.metadata().await?.len();
     let file_name = file_path

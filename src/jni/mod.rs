@@ -143,6 +143,7 @@ async fn do_download(url: &str, output_path: &str, account_id: i64) -> Result<St
 
     // Create client
     let tg = TelegramClient::new(account_id, api_id)
+        .await
         .map_err(|e| format!("Failed to create client: {}", e))?;
 
     if !tg.is_authorized().await.unwrap_or(false) {

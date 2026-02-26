@@ -3,9 +3,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
-
-const ACCOUNTS_FILE: &str = "sessions/accounts.json";
 
 /// Account info stored in accounts.json
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -18,7 +15,7 @@ pub struct AccountInfo {
 
 /// Load accounts metadata from file
 pub fn load_accounts() -> Result<HashMap<i64, AccountInfo>> {
-    let path = PathBuf::from(ACCOUNTS_FILE);
+    let path = super::manager::accounts_file();
     if !path.exists() {
         return Ok(HashMap::new());
     }
@@ -30,7 +27,7 @@ pub fn load_accounts() -> Result<HashMap<i64, AccountInfo>> {
 pub fn save_accounts(accounts: &HashMap<i64, AccountInfo>) -> Result<()> {
     super::manager::ensure_dir()?;
     let content = serde_json::to_string_pretty(accounts)?;
-    fs::write(ACCOUNTS_FILE, content)?;
+    fs::write(super::manager::accounts_file(), content)?;
     Ok(())
 }
 

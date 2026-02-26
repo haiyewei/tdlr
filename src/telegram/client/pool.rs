@@ -37,7 +37,7 @@ impl ClientPool {
             bail!("Account {} not found", user_id);
         }
 
-        let client = Arc::new(TelegramClient::new(user_id, self.api_id)?);
+        let client = Arc::new(TelegramClient::new(user_id, self.api_id).await?);
 
         // Store in pool
         {

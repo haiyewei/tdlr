@@ -31,14 +31,14 @@ pub struct TelegramClient {
 
 impl TelegramClient {
     /// Create a new client for the given user_id
-    pub fn new(user_id: i64, api_id: i32) -> Result<Self> {
+    pub async fn new(user_id: i64, api_id: i32) -> Result<Self> {
         SessionManager::ensure_dir()?;
 
         let session_path = SessionManager::session_path(user_id);
-        let session = Arc::new(SqliteSession::open(session_path.to_str().unwrap())?);
+        let session = Arc::new(SqliteSession::open(session_path.to_str().unwrap()).await?);
         let pool =
             SenderPool::with_configuration(Arc::clone(&session), api_id, connection_params());
-        let client = Client::new(&pool);
+        let client = Client::new(pool.handle.clone());
 
         let network_handle = {
             let runner = pool.runner;
@@ -56,14 +56,14 @@ impl TelegramClient {
     }
 
     /// Create a new client with a temp session name (for login)
-    pub fn new_temp(temp_name: &str, api_id: i32) -> Result<Self> {
+    pub async fn new_temp(temp_name: &str, api_id: i32) -> Result<Self> {
         SessionManager::ensure_dir()?;
 
         let session_path = SessionManager::session_path_str(temp_name);
-        let session = Arc::new(SqliteSession::open(session_path.to_str().unwrap())?);
+        let session = Arc::new(SqliteSession::open(session_path.to_str().unwrap()).await?);
         let pool =
             SenderPool::with_configuration(Arc::clone(&session), api_id, connection_params());
-        let client = Client::new(&pool);
+        let client = Client::new(pool.handle.clone());
 
         let network_handle = {
             let runner = pool.runner;
@@ -91,7 +91,7 @@ impl TelegramClient {
     }
 
     /// Get current user
-    pub async fn get_me(&self) -> Result<grammers_client::types::User> {
+    pub async fn get_me(&self) -> Result<grammers_client::peer::User> {
         Ok(self.client.get_me().await?)
     }
 
@@ -101,8 +101,8 @@ impl TelegramClient {
     }
 
     /// Set home DC ID (needed after DC migration during login)
-    pub fn set_home_dc_id(&self, dc_id: i32) {
-        self.session.set_home_dc_id(dc_id);
+    pub async fn set_home_dc_id(&self, dc_id: i32) {
+        self.session.set_home_dc_id(dc_id).await;
     }
 }
 
