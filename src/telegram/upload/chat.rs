@@ -2,8 +2,9 @@
 
 use anyhow::{bail, Result};
 use grammers_client::peer::Peer;
-use grammers_client::Client;
 use grammers_tl_types as tl;
+
+use crate::telegram::TelegramClient;
 
 /// Resolved chat information
 pub struct ResolvedChat {
@@ -17,7 +18,7 @@ pub struct ResolvedChat {
 }
 
 /// Resolve chat from string (username, ID, link, or special values)
-pub async fn resolve_chat(client: &Client, chat_str: &str) -> Result<ResolvedChat> {
+pub async fn resolve_chat(client: &TelegramClient, chat_str: &str) -> Result<ResolvedChat> {
     let chat_str = chat_str.trim();
 
     // Handle special values - Saved Messages
@@ -52,7 +53,7 @@ pub async fn resolve_chat(client: &Client, chat_str: &str) -> Result<ResolvedCha
 }
 
 /// Resolve chat from Telegram link
-async fn resolve_from_link(client: &Client, link: &str) -> Result<ResolvedChat> {
+async fn resolve_from_link(client: &TelegramClient, link: &str) -> Result<ResolvedChat> {
     // Parse the link path
     let path = link
         .trim_start_matches("https://t.me/")
@@ -83,8 +84,9 @@ async fn resolve_from_link(client: &Client, link: &str) -> Result<ResolvedChat> 
 }
 
 /// Resolve chat by username using high-level API
-async fn resolve_username(client: &Client, username: &str) -> Result<ResolvedChat> {
+async fn resolve_username(client: &TelegramClient, username: &str) -> Result<ResolvedChat> {
     let peer = client
+        .inner()
         .resolve_username(username)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Username @{} not found", username))?;
@@ -103,7 +105,7 @@ async fn resolve_username(client: &Client, username: &str) -> Result<ResolvedCha
 }
 
 /// Resolve chat by numeric ID (searches in dialogs)
-async fn resolve_by_id(client: &Client, id: i64) -> Result<ResolvedChat> {
+async fn resolve_by_id(client: &TelegramClient, id: i64) -> Result<ResolvedChat> {
     // Convert -100 prefix format to raw channel_id if needed
     let target_id = if id < -1_000_000_000_000 {
         // -1002134730022 -> 2134730022
@@ -115,7 +117,35 @@ async fn resolve_by_id(client: &Client, id: i64) -> Result<ResolvedChat> {
         id
     };
 
-    let mut dialogs = client.iter_dialogs();
+    // Fast path: try to find cached peer in session
+    let possible_peers = [
+        grammers_session::types::PeerId::channel(target_id),
+        grammers_session::types::PeerId::chat(target_id),
+        grammers_session::types::PeerId::user(target_id),
+    ];
+
+    for peer_id_opt in possible_peers {
+        if let Some(peer_id) = peer_id_opt {
+            if let Some(peer_ref) = client.get_peer_ref(peer_id).await {
+                if let Ok(peer) = client.inner().resolve_peer(peer_ref).await {
+                    let name = peer.name().unwrap_or("Unknown").to_string();
+                    let input_peer = peer_to_input_peer(&peer);
+                    let (is_public, noforwards) = extract_chat_flags(&peer);
+
+                    return Ok(ResolvedChat {
+                        input_peer,
+                        name,
+                        peer: Some(peer),
+                        is_public,
+                        noforwards,
+                    });
+                }
+            }
+        }
+    }
+
+    // Slow path: search through dialogs (fallback if not cached or cache invalid)
+    let mut dialogs = client.inner().iter_dialogs();
 
     while let Some(dialog) = dialogs.next().await? {
         let peer = &dialog.peer;
@@ -137,7 +167,7 @@ async fn resolve_by_id(client: &Client, id: i64) -> Result<ResolvedChat> {
         }
     }
 
-    bail!("Chat with ID {} not found in dialogs", id);
+    bail!("Chat with ID {} not found in dialogs or cache", id);
 }
 
 /// Extract is_public and noforwards flags from Peer

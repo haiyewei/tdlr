@@ -65,7 +65,7 @@ pub async fn run(
 
     // Resolve destination chat
     let dest_str = to.as_deref().unwrap_or("");
-    let dest = resolve_chat(client.inner(), dest_str).await?;
+    let dest = resolve_chat(&client, dest_str).await?;
     println!("  {} {}", "To:".cyan(), dest.name);
 
     let mut success = 0usize;
@@ -82,7 +82,7 @@ pub async fn run(
             ForwardMode::Clone => ForwardMode::Clone,
             ForwardMode::Smart => {
                 // Resolve source chat to check its properties
-                match resolve_source_chat(client.inner(), src, from_chat.as_deref()).await {
+                match resolve_source_chat(&client, src, from_chat.as_deref()).await {
                     Ok(source_chat) => detect_mode_from_chat(&source_chat),
                     Err(_) => {
                         // If we can't resolve, default to direct
@@ -103,7 +103,7 @@ pub async fn run(
         let result = match actual_mode {
             ForwardMode::Direct => {
                 direct::forward_direct(
-                    client.inner(),
+                    &client,
                     src,
                     from_chat.as_deref(),
                     &dest.input_peer,
@@ -115,7 +115,7 @@ pub async fn run(
             ForwardMode::Clone => {
                 // Print newline so progress bar appears on its own line
                 println!();
-                clone::forward_clone(client.inner(), src, from_chat.as_deref(), &dest, topic).await
+                clone::forward_clone(&client, src, from_chat.as_deref(), &dest, topic).await
             }
             ForwardMode::Smart => unreachable!(),
         };
@@ -138,7 +138,7 @@ pub async fn run(
 
 /// Resolve source chat from TelegramLink
 async fn resolve_source_chat(
-    client: &grammers_client::Client,
+    client: &crate::telegram::TelegramClient,
     src: &TelegramLink,
     from_chat: Option<&str>,
 ) -> Result<ResolvedChat> {

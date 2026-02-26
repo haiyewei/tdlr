@@ -121,12 +121,13 @@ async fn download_thumbnail(
 
 /// Forward message by downloading and re-uploading
 pub async fn forward_clone(
-    client: &Client,
+    tg: &crate::telegram::TelegramClient,
     src: &TelegramLink,
     from_chat: Option<&str>,
     dest: &ResolvedChat,
     topic: Option<i32>,
 ) -> Result<i32> {
+    let client = tg.inner();
     // Resolve source chat string
     let chat_str = match &src.chat {
         ChatIdentifier::Username(u) => u.clone(),
@@ -139,7 +140,7 @@ pub async fn forward_clone(
     let message_id = src.effective_message_id();
 
     // Fetch message and extract content
-    let (_resolved, content_list) = fetch_message(client, &chat_str, message_id).await?;
+    let (_resolved, content_list) = fetch_message(tg, &chat_str, message_id).await?;
 
     if content_list.is_empty() {
         bail!("Message is empty");

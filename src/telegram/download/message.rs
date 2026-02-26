@@ -1,6 +1,7 @@
 //! Message fetching from Telegram
 
 use crate::telegram::upload::{resolve_chat, ResolvedChat};
+use crate::telegram::TelegramClient;
 use anyhow::{bail, Result};
 use grammers_client::Client;
 use grammers_tl_types as tl;
@@ -17,11 +18,12 @@ pub enum MessageContent {
 /// Supports media groups (albums) - will fetch all media in the group
 /// Also supports text-only messages
 pub async fn fetch_message(
-    client: &Client,
+    tg: &TelegramClient,
     chat_str: &str,
     message_id: i32,
 ) -> Result<(ResolvedChat, Vec<MessageContent>)> {
-    let resolved = resolve_chat(client, chat_str).await?;
+    let client = tg.inner();
+    let resolved = resolve_chat(tg, chat_str).await?;
     let input_peer = resolved.input_peer.clone();
 
     // First, get the target message to check for grouped_id

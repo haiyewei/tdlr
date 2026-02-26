@@ -100,6 +100,14 @@ impl TelegramClient {
         self.session.home_dc_id()
     }
 
+    /// Get a peer reference from the session cache
+    pub async fn get_peer_ref(
+        &self,
+        peer_id: grammers_session::types::PeerId,
+    ) -> Option<grammers_session::types::PeerRef> {
+        self.session.peer_ref(peer_id).await
+    }
+
     /// Set home DC ID (needed after DC migration during login)
     pub async fn set_home_dc_id(&self, dc_id: i32) {
         self.session.set_home_dc_id(dc_id).await;

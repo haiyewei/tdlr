@@ -69,7 +69,7 @@ pub async fn run(
         }
 
         let ctx = UploadContext {
-            client: client.inner(),
+            client,
             chat: &chat,
             topic,
             caption: &caption,

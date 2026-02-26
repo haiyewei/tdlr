@@ -7,9 +7,9 @@ use crate::telegram::upload::{
     is_media_group_supported, resolve_chat, upload_file, upload_media_group, ResolvedChat,
     MAX_MEDIA_GROUP_SIZE,
 };
+use crate::telegram::TelegramClient;
 use anyhow::Result;
 use futures::stream::{self, StreamExt};
-use grammers_client::Client;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -32,7 +32,7 @@ impl UploadStats {
 
 /// Upload context for a single upload operation
 pub struct UploadContext<'a> {
-    pub client: &'a Client,
+    pub client: &'a TelegramClient,
     pub chat: &'a Option<String>,
     pub topic: Option<i32>,
     pub caption: &'a Option<String>,
@@ -105,7 +105,9 @@ pub async fn upload_single_files(
                     return;
                 };
 
-                match upload_file(ctx.client, &file.path, chat, ctx.topic, caption_ref).await {
+                match upload_file(ctx.client.inner(), &file.path, chat, ctx.topic, caption_ref)
+                    .await
+                {
                     Ok(msg) => {
                         output::print_success(msg.id());
                         let mut s = stats_mutex.lock().await;
@@ -183,7 +185,7 @@ pub async fn upload_media_groups(
         output::print_group_progress(batch_idx, total_batches, batch.len());
 
         match upload_media_group(
-            ctx.client,
+            ctx.client.inner(),
             &batch_paths,
             &chat,
             ctx.topic,

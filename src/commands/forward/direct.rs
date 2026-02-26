@@ -3,32 +3,32 @@
 use crate::telegram::upload::resolve_chat;
 use crate::utils::{ChatIdentifier, TelegramLink};
 use anyhow::{bail, Result};
-use grammers_client::Client;
 use grammers_tl_types as tl;
 
 /// Forward message using Telegram native forward API
 pub async fn forward_direct(
-    client: &Client,
+    tg: &crate::telegram::TelegramClient,
     src: &TelegramLink,
     from_chat: Option<&str>,
     to_peer: &tl::enums::InputPeer,
     topic: Option<i32>,
     drop_author: bool,
 ) -> Result<i32> {
+    let client = tg.inner();
     // Resolve source chat
     let from_peer = match &src.chat {
         ChatIdentifier::Username(username) => {
-            let resolved = resolve_chat(client, username).await?;
+            let resolved = resolve_chat(tg, username).await?;
             resolved.input_peer
         }
         ChatIdentifier::ChannelId(id) => {
             let chat_str = format!("-100{}", id);
-            let resolved = resolve_chat(client, &chat_str).await?;
+            let resolved = resolve_chat(tg, &chat_str).await?;
             resolved.input_peer
         }
         ChatIdentifier::External => {
             let chat_str = from_chat.ok_or_else(|| anyhow::anyhow!("--from-chat required"))?;
-            let resolved = resolve_chat(client, chat_str).await?;
+            let resolved = resolve_chat(tg, chat_str).await?;
             resolved.input_peer
         }
     };

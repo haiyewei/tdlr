@@ -5,9 +5,9 @@ use super::template::{render, TemplateContext};
 use crate::telegram::download::{
     download_document, download_photo, fetch_message, DocumentInfo, MessageContent, PhotoInfo,
 };
+use crate::telegram::TelegramClient;
 use crate::utils::{get_extension, ChatIdentifier, ExtFilter, TelegramLink};
 use anyhow::Result;
-use grammers_client::Client;
 use std::path::Path;
 
 /// Download result statistics
@@ -34,7 +34,7 @@ impl DownloadStats {
 
 /// Download context
 pub struct DownloadContext<'a> {
-    pub client: &'a Client,
+    pub client: &'a TelegramClient,
     pub output_dir: &'a Path,
     pub filter: &'a ExtFilter,
     pub template: &'a str,
@@ -109,7 +109,7 @@ pub async fn download_link(
                 let filename = render(ctx.template, &template_ctx);
                 let file_path = ctx.output_dir.join(&filename);
 
-                match download_photo(ctx.client, &photo, &file_path).await {
+                match download_photo(ctx.client.inner(), &photo, &file_path).await {
                     Ok(result) => {
                         output::print_success(&result.filename, result.size);
                         stats.add_success();
@@ -137,7 +137,7 @@ pub async fn download_link(
                 let filename = render(ctx.template, &template_ctx);
                 let file_path = ctx.output_dir.join(&filename);
 
-                match download_document(ctx.client, &doc, &file_path).await {
+                match download_document(ctx.client.inner(), &doc, &file_path).await {
                     Ok(result) => {
                         output::print_success(&result.filename, result.size);
                         stats.add_success();

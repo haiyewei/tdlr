@@ -76,7 +76,7 @@ pub async fn run(
         output::print_progress(i, total, link);
 
         let ctx = DownloadContext {
-            client: client.inner(),
+            client: &client,
             output_dir,
             filter: &filter,
             template: &template,
