@@ -1,11 +1,11 @@
 # Android 集成指南
 
-本文档介绍如何将 tdlr 集成到 Android 应用中。
+本文档介绍如何将 `tdlr` 集成到 Android 应用中。
 
 ## 前置要求
 
-1. **Android NDK** (r21 或更高版本)
-2. **Rust** (1.70+)
+1. **Android NDK** (`r21` 或更高版本)
+2. **Rust** (`1.70+`)
 3. **Android 目标工具链**
 
 ```bash
@@ -34,7 +34,7 @@ export ANDROID_NDK_HOME=/path/to/android-ndk-r26b
 
 编译完成后，库文件位于 `target/android/jniLibs/` 目录：
 
-```
+```text
 target/android/jniLibs/
 ├── arm64-v8a/libtdlr.so
 ├── armeabi-v7a/libtdlr.so
@@ -63,7 +63,6 @@ class TdlrNative {
         }
     }
 
-    // Native methods
     private external fun initRuntime(): Long
     private external fun destroyRuntime(handle: Long)
     private external fun download(handle: Long, url: String, outputPath: String, accountId: Long): String
@@ -131,14 +130,11 @@ class MainActivity : AppCompatActivity() {
 
         tdlr = TdlrNative()
 
-        // 配置 session 目录 (应用私有目录)
         val sessionDir = filesDir.resolve("sessions").absolutePath
         tdlr.configureSessionDir(sessionDir)
 
-        // 配置 API 凭据
         tdlr.configureApi("YOUR_API_ID", "YOUR_API_HASH")
 
-        // 初始化运行时
         if (!tdlr.init()) {
             Log.e("TDLR", "Failed to initialize runtime")
             return
@@ -151,7 +147,6 @@ class MainActivity : AppCompatActivity() {
         val outputDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath
             ?: return
 
-        // 在后台线程执行
         lifecycleScope.launch(Dispatchers.IO) {
             val result = tdlr.downloadFile(url, outputDir, accountId)
 
@@ -177,13 +172,14 @@ class MainActivity : AppCompatActivity() {
 Android 端需要先在桌面端登录并导出 session 文件，然后复制到 Android 设备。
 
 Session 文件位置：
+
 - 桌面端: `sessions/<account_id>.session`
 - Android: `<app_files_dir>/sessions/<account_id>.session`
 
 ## 注意事项
 
 1. **线程安全**: 所有 JNI 调用都应在后台线程执行
-2. **生命周期**: 确保在 Activity/Fragment 销毁时调用 `destroy()`
+2. **生命周期**: 确保在 Activity 或 Fragment 销毁时调用 `destroy()`
 3. **权限**: 需要网络权限和存储权限
 4. **ProGuard**: 如果使用混淆，需要保留 native 方法
 
@@ -193,4 +189,4 @@ Session 文件位置：
 
 ## 最小 SDK 版本
 
-- minSdkVersion: 21 (Android 5.0)
+- `minSdkVersion`: `21` (Android 5.0)
