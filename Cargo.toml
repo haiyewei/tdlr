@@ -1,6 +1,6 @@
 [package]
 name = "tdlr"
-version = "0.1.3"
+version = "0.2.0"
 edition = "2021"
 description = "TDLR - A modular Rust CLI application"
 

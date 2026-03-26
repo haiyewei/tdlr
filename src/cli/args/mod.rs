@@ -6,15 +6,18 @@
 //! - `upload.rs` - Upload command arguments
 //! - `download.rs` - Download command arguments
 //! - `forward.rs` - Forward command arguments
+//! - `service.rs` - Service mode arguments
 
 mod auth;
 mod download;
 mod forward;
 mod root;
+mod service;
 mod upload;
 
 pub use auth::{AuthCommands, LoginCommands, LoginMethod};
 pub use download::DownloadArgs;
 pub use forward::{ForwardArgs, ForwardMode};
 pub use root::{Cli, Commands};
+pub use service::ServiceArgs;
 pub use upload::UploadArgs;

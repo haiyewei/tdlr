@@ -3,7 +3,7 @@
 mod auth;
 mod download;
 mod forward;
-mod hello;
+mod service;
 mod upload;
 mod version;
 
@@ -13,7 +13,13 @@ use anyhow::Result;
 /// Execute a CLI command
 pub async fn execute(command: Commands) -> Result<()> {
     match command {
-        Commands::Hello { name } => hello::run(&name),
+        Commands::Service(args) => service::run(args).await,
+        command => execute_non_service(command).await,
+    }
+}
+
+pub(crate) async fn execute_non_service(command: Commands) -> Result<()> {
+    match command {
         Commands::Version => version::run(),
         Commands::Auth(cmd) => execute_auth(cmd).await,
         Commands::Upload(args) => {
@@ -55,6 +61,7 @@ pub async fn execute(command: Commands) -> Result<()> {
             )
             .await
         }
+        Commands::Service(_) => unreachable!("service commands must be handled separately"),
     }
 }
 

@@ -3,6 +3,7 @@
 use super::auth::AuthCommands;
 use super::download::DownloadArgs;
 use super::forward::ForwardArgs;
+use super::service::ServiceArgs;
 use super::upload::UploadArgs;
 use clap::{Parser, Subcommand};
 
@@ -16,12 +17,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Say hello to someone
-    Hello {
-        /// Name to greet
-        #[arg(short, long, default_value = "World")]
-        name: String,
-    },
     /// Show version information
     Version,
     /// Manage Telegram authentication
@@ -33,4 +28,6 @@ pub enum Commands {
     Download(DownloadArgs),
     /// Forward messages from one chat to another
     Forward(ForwardArgs),
+    /// Run in long-lived service mode over stdin or HTTP
+    Service(ServiceArgs),
 }
