@@ -109,6 +109,61 @@ function Add-UniqueDirectory {
     }
 }
 
+function Invoke-NativeCommandQuietly {
+    param(
+        [string]$FilePath,
+        [string[]]$Arguments
+    )
+
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $FilePath
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+
+    if ($Arguments) {
+        $escapedArguments = foreach ($argument in $Arguments) {
+            if ($null -eq $argument) {
+                '""'
+            }
+            else {
+                '"' + ($argument -replace '"', '\"') + '"'
+            }
+        }
+
+        $processInfo.Arguments = [string]::Join(" ", $escapedArguments)
+    }
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processInfo
+
+    try {
+        [void]$process.Start()
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+
+        if ($process.ExitCode -ne 0) {
+            return $null
+        }
+
+        if ([string]::IsNullOrWhiteSpace($stdout)) {
+            return @()
+        }
+
+        return ($stdout -split "\r?\n")
+    }
+    finally {
+        if ($process) {
+            $process.Dispose()
+        }
+        if ($stderr) {
+            $null = $stderr
+        }
+    }
+}
+
 function Get-DirectoriesFromPath {
     param(
         [string]$PathValue
@@ -158,14 +213,14 @@ function Get-LegacyInstallDirsFromGit {
     )
 
     $logArgs = @("-C", $RepoRoot, "log", "--format=%H", "--") + $scriptPaths
-    $commits = (& $git.Source @logArgs 2>$null) |
+    $commits = (Invoke-NativeCommandQuietly -FilePath $git.Source -Arguments $logArgs) |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Select-Object -Unique
 
     foreach ($commit in $commits) {
         foreach ($scriptPath in $scriptPaths) {
             $spec = "{0}:{1}" -f $commit, $scriptPath
-            $content = & $git.Source -C $RepoRoot show $spec 2>$null
+            $content = Invoke-NativeCommandQuietly -FilePath $git.Source -Arguments @("-C", $RepoRoot, "show", $spec)
             if (-not $content) {
                 continue
             }

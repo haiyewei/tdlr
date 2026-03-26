@@ -21,6 +21,14 @@ use std::time::Duration;
 /// Max retries for import token before generating new QR
 const MAX_IMPORT_RETRIES: u32 = 5;
 
+fn format_qr_login_error(err: &str) -> String {
+    if is_zh() {
+        format!("二维码登录失败: {}", err)
+    } else {
+        format!("QR login failed: {}", err)
+    }
+}
+
 fn render_qr(url: &str) {
     match QrCode::new(url.as_bytes()) {
         Ok(code) => {
@@ -49,27 +57,34 @@ async fn try_import_login(
     token: Vec<u8>,
 ) -> Result<Option<grammers_client::peer::User>> {
     let client = tg.inner();
-    let import_request = tl::functions::auth::ImportLoginToken { token };
+    let mut current_dc = dc_id;
+    let mut current_token = token;
+    let mut last_error = None::<String>;
 
     for attempt in 0..MAX_IMPORT_RETRIES {
-        match client.invoke_in_dc(dc_id, &import_request).await {
+        let import_request = tl::functions::auth::ImportLoginToken {
+            token: current_token.clone(),
+        };
+
+        match client.invoke_in_dc(current_dc, &import_request).await {
             Ok(tl::enums::auth::LoginToken::Success(s)) => {
-                return Ok(Some(handle_success(tg, s, Some(dc_id)).await?));
+                return Ok(Some(handle_success(tg, s, Some(current_dc)).await?));
             }
-            Ok(tl::enums::auth::LoginToken::Token(_)) => {
-                // Token returned, need to wait
+            Ok(tl::enums::auth::LoginToken::Token(next)) => {
+                // Telegram may rotate the token before returning success.
+                // Continue the import flow with the refreshed token.
+                current_token = next.token;
+                if next.expires <= now() {
+                    return Ok(None);
+                }
+                last_error = None;
                 tokio::time::sleep(Duration::from_secs(2)).await;
                 continue;
             }
             Ok(tl::enums::auth::LoginToken::MigrateTo(m2)) => {
-                // Redirect to another DC
-                let import2 = tl::functions::auth::ImportLoginToken { token: m2.token };
-                if let Ok(tl::enums::auth::LoginToken::Success(s)) =
-                    client.invoke_in_dc(m2.dc_id, &import2).await
-                {
-                    return Ok(Some(handle_success(tg, s, Some(m2.dc_id)).await?));
-                }
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                current_dc = m2.dc_id;
+                current_token = m2.token;
+                last_error = None;
                 continue;
             }
             Err(e) => {
@@ -84,9 +99,19 @@ async fn try_import_login(
                     );
                 }
                 if err_str.contains("AUTH_TOKEN_ALREADY_ACCEPTED") {
-                    tg.set_home_dc_id(dc_id).await;
+                    tg.set_home_dc_id(current_dc).await;
                     tokio::time::sleep(Duration::from_millis(300)).await;
-                    return Ok(Some(tg.get_me().await?));
+                    match tg.get_me().await {
+                        Ok(user) => return Ok(Some(user)),
+                        Err(get_me_err) => {
+                            last_error = Some(get_me_err.to_string());
+                            if attempt < MAX_IMPORT_RETRIES - 1 {
+                                tokio::time::sleep(Duration::from_secs(1)).await;
+                                continue;
+                            }
+                            break;
+                        }
+                    }
                 }
                 if err_str.contains("AUTH_TOKEN_EXPIRED") || err_str.contains("AUTH_TOKEN_INVALID")
                 {
@@ -94,14 +119,20 @@ async fn try_import_login(
                     return Ok(None);
                 }
                 // Other error, retry after delay
+                last_error = Some(err_str);
                 if attempt < MAX_IMPORT_RETRIES - 1 {
                     tokio::time::sleep(Duration::from_secs(2)).await;
                     continue;
                 }
-                return Ok(None);
+                break;
             }
         }
     }
+
+    if let Some(err) = last_error {
+        bail!("{}", format_qr_login_error(&err));
+    }
+
     Ok(None)
 }
 
