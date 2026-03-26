@@ -48,11 +48,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 default_install_dir() {
-  if [[ -d "${HOME}/.cargo/bin" ]]; then
-    printf '%s\n' "${HOME}/.cargo/bin"
-  else
-    printf '%s\n' "${HOME}/.local/bin"
-  fi
+  printf '%s\n' "${HOME}/.local/bin"
 }
 
 absolute_file_path() {

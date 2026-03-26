@@ -2,8 +2,8 @@
 
 安装脚本已经合并为一套统一入口：
 
-- Unix: `scripts/install.sh`
-- Windows: `scripts/install.ps1`
+- Unix: `scripts/install.sh` / `scripts/uninstall.sh`
+- Windows: `scripts/install.ps1` / `scripts/uninstall.ps1`
 
 默认行为：
 
@@ -11,11 +11,12 @@
 - 安装到用户目录，而不是系统目录
 - 写入用户级 PATH，而不是机器级 PATH
 - 不再要求 `sudo` 或管理员权限
+- 卸载脚本会自动识别当前安装目录，并在仓库内运行时结合 Git 历史识别旧版系统级安装路径
 
 默认安装目录：
 
-- Linux / macOS: 优先 `~/.cargo/bin`，否则 `~/.local/bin`
-- Windows: 优先 `%USERPROFILE%\.cargo\bin`，否则 `%LOCALAPPDATA%\Programs\tdlr\bin`
+- Linux / macOS: `~/.local/bin`
+- Windows: `%LOCALAPPDATA%\Programs\tdlr\bin`
 
 ## Linux 发布变体
 
@@ -43,7 +44,7 @@ curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.s
 指定版本：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --version v0.1.0
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --version v0.2.1
 ```
 
 使用代理：
@@ -61,7 +62,7 @@ irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | i
 指定版本：
 
 ```powershell
-$Version = "v0.1.0"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
+$Version = "v0.2.1"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
 ```
 
 使用代理：
@@ -127,6 +128,44 @@ Windows PowerShell:
 $env:TG_API_ID = "123456"
 $env:TG_API_HASH = "your_api_hash"
 ```
+
+---
+
+## 4. 卸载
+
+卸载脚本会删除当前用户安装目录里的二进制文件，也会检查 `PATH` 中已经存在的安装位置；如果脚本是在仓库里运行，还会结合 Git 历史中的旧安装脚本去识别旧版系统级安装目录，例如 `/usr/local/bin` 和 `C:\tdlr`。
+
+如果你已经知道准确的安装目录，也可以在 Unix 下传 `--install-dir`，或在 PowerShell 下传 `-InstallDir`，把卸载范围限制在指定路径。
+
+### Linux / macOS
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/uninstall.sh | bash
+```
+
+如果希望同时启用基于 Git 历史的旧路径识别，建议在仓库里运行：
+
+```bash
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+bash scripts/uninstall.sh
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/uninstall.ps1 | iex
+```
+
+如果希望同时启用基于 Git 历史的旧路径识别，建议在仓库里运行：
+
+```powershell
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+.\scripts\uninstall.ps1
+```
+
+如果 Windows 里仍然存在旧版机器级 PATH 项，请以管理员身份重新运行 PowerShell 卸载脚本，这样它才能顺带移除机器级 PATH。
 
 ---
 

@@ -2,8 +2,8 @@
 
 The install scripts have been merged into a single entry point per platform:
 
-- Unix: `scripts/install.sh`
-- Windows: `scripts/install.ps1`
+- Unix: `scripts/install.sh` / `scripts/uninstall.sh`
+- Windows: `scripts/install.ps1` / `scripts/uninstall.ps1`
 
 Default behavior:
 
@@ -11,11 +11,12 @@ Default behavior:
 - Install into user-owned directories instead of system directories
 - Update user-level `PATH` instead of machine-level `PATH`
 - Do not require `sudo` or administrator privileges
+- The uninstall scripts detect current install locations and legacy system-wide locations from Git history when available
 
 Default install directories:
 
-- Linux / macOS: prefer `~/.cargo/bin`, otherwise `~/.local/bin`
-- Windows: prefer `%USERPROFILE%\.cargo\bin`, otherwise `%LOCALAPPDATA%\Programs\tdlr\bin`
+- Linux / macOS: `~/.local/bin`
+- Windows: `%LOCALAPPDATA%\Programs\tdlr\bin`
 
 ## Linux release variants
 
@@ -43,7 +44,7 @@ curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.s
 Install a specific version:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --version v0.1.0
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --version v0.2.1
 ```
 
 Use proxy mode:
@@ -61,7 +62,7 @@ irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | i
 Install a specific version:
 
 ```powershell
-$Version = "v0.1.0"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
+$Version = "v0.2.1"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
 ```
 
 Use proxy mode:
@@ -127,6 +128,44 @@ Windows PowerShell:
 $env:TG_API_ID = "123456"
 $env:TG_API_HASH = "your_api_hash"
 ```
+
+---
+
+## 4. Uninstall
+
+The uninstall scripts remove binaries from the current user install directory, inspect `PATH` for existing installs, and also look at historical installer paths from Git history when they run inside the repository. That covers previous system-wide installs such as `/usr/local/bin` and `C:\tdlr`.
+
+If you already know the exact install directory, pass `--install-dir` on Unix or `-InstallDir` on PowerShell to limit the uninstall scope to that location only.
+
+### Linux / macOS
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/uninstall.sh | bash
+```
+
+Run from the repository to include Git-history-based legacy path detection:
+
+```bash
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+bash scripts/uninstall.sh
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/uninstall.ps1 | iex
+```
+
+Run from the repository to include Git-history-based legacy path detection:
+
+```powershell
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+.\scripts\uninstall.ps1
+```
+
+If a legacy machine-level PATH entry still exists on Windows, rerun the PowerShell script in an elevated session so it can remove that machine PATH entry too.
 
 ---
 

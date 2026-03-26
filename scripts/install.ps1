@@ -29,11 +29,6 @@ else {
 }
 
 function Get-DefaultInstallDir {
-    $cargoBin = Join-Path $HOME ".cargo\bin"
-    if (Test-Path $cargoBin -PathType Container) {
-        return $cargoBin
-    }
-
     return (Join-Path $env:LOCALAPPDATA "Programs\tdlr\bin")
 }
 
