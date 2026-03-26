@@ -15,6 +15,8 @@ path = "src/main.rs"
 
 [build-dependencies]
 chrono = "0.4"
+grammers-client = "0.9.0"
+tokio = { version = "1.49.0", features = ["rt", "time"] }
 
 [dependencies]
 chrono = "0.4"
