@@ -1,13 +1,14 @@
 # Build and release binaries for multiple platforms
 name: Release
 
-permissions:
-  contents: write
-
 on:
   push:
     tags:
       - 'v*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,32 +17,45 @@ env:
 jobs:
   build:
     name: ${{ matrix.name }}
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Linux-x86_64
+          - name: linux-x86_64-gnu
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            artifact: tdlr_Linux_64bit.tar.gz
-          - name: Linux-aarch64
+            artifact: tdlr-x86_64-unknown-linux-gnu.tar.gz
+          - name: linux-aarch64-gnu
             os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
-            artifact: tdlr_Linux_arm64.tar.gz
+            artifact: tdlr-aarch64-unknown-linux-gnu.tar.gz
             cross: true
-          - name: macOS-x86_64
-            os: macos-15
+          - name: linux-x86_64-musl
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-musl
+            artifact: tdlr-x86_64-unknown-linux-musl.tar.gz
+            cross: true
+          - name: linux-aarch64-musl
+            os: ubuntu-22.04
+            target: aarch64-unknown-linux-musl
+            artifact: tdlr-aarch64-unknown-linux-musl.tar.gz
+            cross: true
+          - name: macos-x86_64
+            os: macos-15-intel
             target: x86_64-apple-darwin
-            artifact: tdlr_MacOS_64bit.tar.gz
-          - name: macOS-aarch64
+            artifact: tdlr-x86_64-apple-darwin.tar.gz
+          - name: macos-aarch64
             os: macos-14
             target: aarch64-apple-darwin
-            artifact: tdlr_MacOS_arm64.tar.gz
-          - name: Windows-x86_64
+            artifact: tdlr-aarch64-apple-darwin.tar.gz
+          - name: windows-x86_64-msvc
             os: windows-2022
             target: x86_64-pc-windows-msvc
-            artifact: tdlr_Windows_64bit.zip
+            artifact: tdlr-x86_64-pc-windows-msvc.zip
 
     steps:
       - uses: actions/checkout@v4
@@ -55,18 +69,23 @@ jobs:
         if: matrix.cross
         uses: taiki-e/install-action@cross
 
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
       - name: Create .env
         shell: bash
         run: |
-          echo "TG_API_ID=${{ secrets.TG_API_ID }}" >> .env
-          echo "TG_API_HASH=${{ secrets.TG_API_HASH }}" >> .env
+          cat > .env <<EOF
+          TG_API_ID=${{ secrets.TG_API_ID }}
+          TG_API_HASH=${{ secrets.TG_API_HASH }}
+          EOF
 
       - name: Build
         run: |
           if [ "${{ matrix.cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }}
+            cross build --release --locked --target ${{ matrix.target }}
           else
-            cargo build --release --target ${{ matrix.target }}
+            cargo build --release --locked --target ${{ matrix.target }}
           fi
         shell: bash
 
@@ -86,7 +105,9 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/download-artifact@v4
         with:
