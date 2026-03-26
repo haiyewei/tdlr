@@ -72,11 +72,11 @@ function Build-LocalReleaseBinary {
         return $null
     }
 
-    Write-Host "[tdlr] no local binary found, building release binary with cargo build --release"
+    Write-Host "[tdlr] no local binary found, building release binary with cargo build --release --bin tdlr"
 
     Push-Location $RepoRoot
     try {
-        & $cargo.Source build --release
+        & $cargo.Source build --release --bin tdlr
     }
     finally {
         Pop-Location

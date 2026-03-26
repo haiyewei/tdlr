@@ -191,10 +191,10 @@ build_local_release_binary() {
     return 1
   fi
 
-  printf '[tdlr] no local binary found, building release binary with cargo\n'
+  printf '[tdlr] no local binary found, building release binary with cargo --bin %s\n' "${BIN_NAME}"
   (
     cd "${REPO_ROOT}"
-    cargo build --release
+    cargo build --release --bin "${BIN_NAME}"
   )
 
   if [[ -f "${REPO_ROOT}/target/release/${BIN_NAME}" ]]; then

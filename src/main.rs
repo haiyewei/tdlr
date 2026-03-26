@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use tdlr::{commands, Cli};
+use tdlr_core::{commands, Cli};
 
 #[tokio::main]
 async fn main() -> Result<()> {

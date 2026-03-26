@@ -66,12 +66,12 @@ declare -A ABI_MAP=(
 
 for t in "${TARGETS[@]}"; do
     ABI="${ABI_MAP[$t]}"
-    SRC_LIB="target/$t/release/libtdlr.so"
+    SRC_LIB="target/$t/release/libtdlr_core.so"
     DST_DIR="$OUTPUT_DIR/$ABI"
     
     if [ -f "$SRC_LIB" ]; then
         mkdir -p "$DST_DIR"
-        cp "$SRC_LIB" "$DST_DIR/"
+        cp "$SRC_LIB" "$DST_DIR/libtdlr.so"
         echo "Copied: $DST_DIR/libtdlr.so"
     fi
 done

@@ -5,7 +5,7 @@ edition = "2021"
 description = "TDLR - A modular Rust CLI application"
 
 [lib]
-name = "tdlr"
+name = "tdlr_core"
 path = "src/lib.rs"
 crate-type = ["lib", "cdylib"]
 

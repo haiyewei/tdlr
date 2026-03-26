@@ -64,12 +64,12 @@ $AbiMap = @{
 
 foreach ($t in $Targets) {
     $Abi = $AbiMap[$t]
-    $SrcLib = "target\$t\release\libtdlr.so"
+    $SrcLib = "target\$t\release\libtdlr_core.so"
     $DstDir = "$OutputDir\$Abi"
     
     if (Test-Path $SrcLib) {
         New-Item -ItemType Directory -Force -Path $DstDir | Out-Null
-        Copy-Item $SrcLib $DstDir
+        Copy-Item $SrcLib (Join-Path $DstDir "libtdlr.so")
         Write-Host "Copied: $DstDir\libtdlr.so" -ForegroundColor Green
     }
 }
