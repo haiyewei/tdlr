@@ -87,6 +87,7 @@
 //! - Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
 //! - Logic: `&&`, `||`, `!`
 
+use crate::i18n::{is_zh, pick};
 use anyhow::{anyhow, Result};
 use evalexpr::*;
 use std::path::Path;
@@ -266,7 +267,14 @@ pub fn eval_expr(expr: &str, ctx: &FileContext) -> Result<String> {
 
     match eval_with_context(expr, &eval_ctx) {
         Ok(value) => Ok(value_to_string(&value)),
-        Err(e) => Err(anyhow!("Expression error: {}", e)),
+        Err(e) => Err(anyhow!(
+            "{}",
+            if is_zh() {
+                format!("表达式错误: {}", e)
+            } else {
+                format!("Expression error: {}", e)
+            }
+        )),
     }
 }
 
@@ -275,7 +283,15 @@ pub fn eval_routing(expr: &str, ctx: &FileContext) -> String {
     match eval_expr(expr, ctx) {
         Ok(result) => result,
         Err(e) => {
-            eprintln!("Warning: routing expression error: {}", e);
+            eprintln!(
+                "{}: {}",
+                pick("警告", "Warning"),
+                if is_zh() {
+                    format!("路由表达式错误: {}", e)
+                } else {
+                    format!("routing expression error: {}", e)
+                }
+            );
             "me".to_string() // Default to Saved Messages on error
         }
     }

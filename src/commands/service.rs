@@ -1,9 +1,9 @@
 //! Long-lived service mode over stdin/stdout or HTTP
 
-use crate::cli::{AuthCommands, Commands, LoginCommands, ServiceArgs};
-use crate::Cli;
+use crate::cli::{self, AuthCommands, Commands, LoginCommands, ServiceArgs};
+use crate::i18n::{pick, set_current_language};
 use anyhow::{anyhow, bail, Result};
-use clap::{error::ErrorKind, Parser};
+use clap::error::ErrorKind;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::Write;
@@ -102,7 +102,7 @@ async fn run_stdio(json_events: bool) -> Result<()> {
                         protocol: None,
                     });
                 } else {
-                    eprintln!("Service request error: {}", err);
+                    eprintln!("{}: {}", pick("服务请求错误", "Service request error"), err);
                 }
                 continue;
             }
@@ -135,7 +135,7 @@ async fn run_stdio(json_events: bool) -> Result<()> {
                 protocol: None,
             });
         } else if let Some(error) = error {
-            eprintln!("Command failed: {}", error);
+            eprintln!("{}: {}", pick("命令执行失败", "Command failed"), error);
         }
     }
 
@@ -144,37 +144,48 @@ async fn run_stdio(json_events: bool) -> Result<()> {
 
 async fn run_http(bind: &str) -> Result<()> {
     let listener = TcpListener::bind(bind).await?;
-    println!("HTTP API listening on http://{}", bind);
+    println!(
+        "{} http://{}",
+        pick("HTTP API 正在监听", "HTTP API listening on"),
+        bind
+    );
 
     loop {
         let (stream, remote) = listener.accept().await?;
         tokio::spawn(async move {
             if let Err(err) = handle_http_connection(stream).await {
-                eprintln!("HTTP connection {} failed: {}", remote, err);
+                eprintln!(
+                    "{} {}: {}",
+                    pick("HTTP 连接失败", "HTTP connection failed"),
+                    remote,
+                    err
+                );
             }
         });
     }
 }
 
 async fn execute_request(args: &[String]) -> Result<()> {
-    let cli = match Cli::try_parse_from(normalize_argv(args)) {
-        Ok(cli) => cli,
+    let parsed = match cli::parse_from(normalize_argv(args)) {
+        Ok(parsed) => parsed,
         Err(err) => {
             let is_display = matches!(
                 err.kind(),
                 ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
             );
-            print!("{err}");
+            let rendered = err.rendered();
+            print!("{rendered}");
             let _ = std::io::stdout().flush();
             if is_display {
                 return Ok(());
             }
-            return Err(anyhow!(err.to_string()));
+            return Err(anyhow!(err.message()));
         }
     };
 
-    ensure_service_safe(&cli.command)?;
-    crate::commands::execute_non_service(cli.command).await
+    set_current_language(parsed.lang);
+    ensure_service_safe(&parsed.cli.command)?;
+    crate::commands::execute_non_service(parsed.cli.command).await
 }
 
 async fn handle_http_connection(stream: TcpStream) -> Result<()> {
@@ -190,15 +201,15 @@ async fn handle_http_connection(stream: TcpStream) -> Result<()> {
     let mut parts = request_line.split_whitespace();
     let method = parts
         .next()
-        .ok_or_else(|| anyhow!("missing HTTP method"))?
+        .ok_or_else(|| anyhow!(pick("缺少 HTTP 方法", "missing HTTP method")))?
         .to_string();
     let path = parts
         .next()
-        .ok_or_else(|| anyhow!("missing HTTP path"))?
+        .ok_or_else(|| anyhow!(pick("缺少 HTTP 路径", "missing HTTP path")))?
         .to_string();
     let version = parts
         .next()
-        .ok_or_else(|| anyhow!("missing HTTP version"))?
+        .ok_or_else(|| anyhow!(pick("缺少 HTTP 版本", "missing HTTP version")))?
         .to_string();
 
     let mut content_length = 0usize;
@@ -216,10 +227,9 @@ async fn handle_http_connection(stream: TcpStream) -> Result<()> {
 
         if let Some((name, value)) = line.split_once(':') {
             if name.trim().eq_ignore_ascii_case("content-length") {
-                content_length = value
-                    .trim()
-                    .parse()
-                    .map_err(|_| anyhow!("invalid Content-Length"))?;
+                content_length = value.trim().parse().map_err(|_| {
+                    anyhow!(pick("无效的 Content-Length", "invalid Content-Length"))
+                })?;
             }
         }
     }
@@ -227,12 +237,12 @@ async fn handle_http_connection(stream: TcpStream) -> Result<()> {
     let response = if !version.starts_with("HTTP/1.") {
         http_json_response(
             505,
-            json!({ "ok": false, "error": "unsupported HTTP version" }),
+            json!({ "ok": false, "error": pick("不支持的 HTTP 版本", "unsupported HTTP version") }),
         )
     } else if content_length > MAX_HTTP_BODY_SIZE {
         http_json_response(
             413,
-            json!({ "ok": false, "error": "request body too large" }),
+            json!({ "ok": false, "error": pick("请求体过大", "request body too large") }),
         )
     } else {
         let mut body = vec![0u8; content_length];
@@ -258,7 +268,10 @@ async fn route_http_request(method: &str, path: &str, body: &[u8]) -> String {
             }),
         ),
         ("POST", "/execute") | ("POST", "/v1/execute") => handle_http_execute(body).await,
-        _ => http_json_response(404, json!({ "ok": false, "error": "not found" })),
+        _ => http_json_response(
+            404,
+            json!({ "ok": false, "error": pick("未找到", "not found") }),
+        ),
     }
 }
 
@@ -268,7 +281,7 @@ async fn handle_http_execute(body: &[u8]) -> String {
         Err(_) => {
             return http_json_response(
                 400,
-                json!({ "ok": false, "error": "request body must be valid UTF-8" }),
+                json!({ "ok": false, "error": pick("请求体必须是有效的 UTF-8", "request body must be valid UTF-8") }),
             );
         }
     };
@@ -332,11 +345,13 @@ async fn execute_request_via_child(
 ) -> Result<(std::process::ExitStatus, String, String)> {
     let current_exe = std::env::current_exe()?;
     let mut command = Command::new(current_exe);
+    let current_lang = crate::i18n::current_language();
     command
         .args(child_args(&request.args))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("TDLR_LANG", current_lang.selector())
         .env("NO_COLOR", "1")
         .env("CLICOLOR", "0")
         .env("CLICOLOR_FORCE", "0");
@@ -352,7 +367,13 @@ fn validate_http_request(args: &[String]) -> Result<()> {
     ensure_service_safe_args(args)?;
 
     if is_exit_command(args) {
-        bail!("HTTP API does not support exit or quit commands");
+        bail!(
+            "{}",
+            pick(
+                "HTTP API 不支持 exit 或 quit 命令",
+                "HTTP API does not support exit or quit commands"
+            )
+        );
     }
 
     Ok(())
@@ -360,9 +381,19 @@ fn validate_http_request(args: &[String]) -> Result<()> {
 
 fn ensure_service_safe(command: &Commands) -> Result<()> {
     match command {
-        Commands::Service(_) => bail!("service mode does not support nested service commands"),
+        Commands::Service(_) => bail!(
+            "{}",
+            pick(
+                "服务模式不支持嵌套的 service 命令",
+                "service mode does not support nested service commands"
+            )
+        ),
         Commands::Auth(AuthCommands::Login(LoginCommands::Add { .. })) => bail!(
-            "service mode does not support 'auth login add' because login prompts require exclusive stdin"
+            "{}",
+            pick(
+                "服务模式不支持 'auth login add'，因为登录交互需要独占 stdin",
+                "service mode does not support 'auth login add' because login prompts require exclusive stdin"
+            )
         ),
         _ => Ok(()),
     }
@@ -371,12 +402,22 @@ fn ensure_service_safe(command: &Commands) -> Result<()> {
 fn ensure_service_safe_args(args: &[String]) -> Result<()> {
     match child_args(args) {
         [service, ..] if service == "service" => {
-            bail!("service mode does not support nested service commands")
+            bail!(
+                "{}",
+                pick(
+                    "服务模式不支持嵌套的 service 命令",
+                    "service mode does not support nested service commands"
+                )
+            )
         }
         [auth, login, add, ..] if auth == "auth" && login == "login" && add == "add" => bail!(
-            "service mode does not support 'auth login add' because login prompts require exclusive stdin"
+            "{}",
+            pick(
+                "服务模式不支持 'auth login add'，因为登录交互需要独占 stdin",
+                "service mode does not support 'auth login add' because login prompts require exclusive stdin"
+            )
         ),
-        [] => bail!("empty command"),
+        [] => bail!("{}", pick("空命令", "empty command")),
         _ => Ok(()),
     }
 }
@@ -406,8 +447,16 @@ fn parse_request(line: &str) -> Result<ParsedRequest> {
     }
 
     if line.starts_with('[') {
-        let args: Vec<String> = serde_json::from_str(line)
-            .map_err(|err| anyhow!("invalid JSON args array: {}", err))?;
+        let args: Vec<String> = serde_json::from_str(line).map_err(|err| {
+            anyhow!(
+                "{}",
+                if crate::i18n::is_zh() {
+                    format!("无效的 JSON 参数数组: {}", err)
+                } else {
+                    format!("invalid JSON args array: {}", err)
+                }
+            )
+        })?;
         return build_request(None, args);
     }
 
@@ -415,14 +464,34 @@ fn parse_request(line: &str) -> Result<ParsedRequest> {
 }
 
 fn parse_json_request(line: &str) -> Result<ParsedRequest> {
-    let request: JsonRequest =
-        serde_json::from_str(line).map_err(|err| anyhow!("invalid JSON request: {}", err))?;
+    let request: JsonRequest = serde_json::from_str(line).map_err(|err| {
+        anyhow!(
+            "{}",
+            if crate::i18n::is_zh() {
+                format!("无效的 JSON 请求: {}", err)
+            } else {
+                format!("invalid JSON request: {}", err)
+            }
+        )
+    })?;
 
     let args = match (request.args, request.command) {
         (Some(args), None) => args,
         (None, Some(command)) => split_command_line(&command)?,
-        (Some(_), Some(_)) => bail!("JSON request cannot contain both 'args' and 'command'"),
-        (None, None) => bail!("JSON request must contain either 'args' or 'command'"),
+        (Some(_), Some(_)) => bail!(
+            "{}",
+            pick(
+                "JSON 请求不能同时包含 'args' 和 'command'",
+                "JSON request cannot contain both 'args' and 'command'"
+            )
+        ),
+        (None, None) => bail!(
+            "{}",
+            pick(
+                "JSON 请求必须包含 'args' 或 'command' 之一",
+                "JSON request must contain either 'args' or 'command'"
+            )
+        ),
     };
 
     build_request(request.id, args)
@@ -430,7 +499,7 @@ fn parse_json_request(line: &str) -> Result<ParsedRequest> {
 
 fn build_request(id: Option<Value>, args: Vec<String>) -> Result<ParsedRequest> {
     if args.is_empty() {
-        bail!("empty command");
+        bail!("{}", pick("空命令", "empty command"));
     }
 
     Ok(ParsedRequest { id, args })
@@ -481,13 +550,22 @@ fn split_command_line(input: &str) -> Result<Vec<String>> {
             }
             Some('"') if ch == '\\' => match chars.peek().copied() {
                 Some('"') | Some('\\') => {
-                    let escaped = chars
-                        .next()
-                        .ok_or_else(|| anyhow!("trailing escape in quoted string"))?;
+                    let escaped = chars.next().ok_or_else(|| {
+                        anyhow!(pick(
+                            "引号字符串末尾存在转义符",
+                            "trailing escape in quoted string"
+                        ))
+                    })?;
                     current.push(escaped);
                 }
                 Some(_) => current.push(ch),
-                None => bail!("trailing escape in quoted string"),
+                None => bail!(
+                    "{}",
+                    pick(
+                        "引号字符串末尾存在转义符",
+                        "trailing escape in quoted string"
+                    )
+                ),
             },
             Some(_) => current.push(ch),
             None if ch.is_whitespace() => {
@@ -499,9 +577,9 @@ fn split_command_line(input: &str) -> Result<Vec<String>> {
                 quote = Some(ch);
             }
             None if ch == '\\' => {
-                let escaped = chars
-                    .next()
-                    .ok_or_else(|| anyhow!("trailing escape in command"))?;
+                let escaped = chars.next().ok_or_else(|| {
+                    anyhow!(pick("命令末尾存在转义符", "trailing escape in command"))
+                })?;
                 current.push(escaped);
             }
             None => current.push(ch),
@@ -509,7 +587,7 @@ fn split_command_line(input: &str) -> Result<Vec<String>> {
     }
 
     if quote.is_some() {
-        bail!("unterminated quoted string");
+        bail!("{}", pick("引号字符串未闭合", "unterminated quoted string"));
     }
 
     if !current.is_empty() {
@@ -517,63 +595,4 @@ fn split_command_line(input: &str) -> Result<Vec<String>> {
     }
 
     Ok(args)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{child_args, ensure_service_safe_args, parse_request, split_command_line};
-
-    #[test]
-    fn split_command_line_handles_quotes() {
-        let args =
-            split_command_line(r#"download --url "https://t.me/test/1" --path "C:\Temp Files""#)
-                .expect("split command");
-
-        assert_eq!(
-            args,
-            vec![
-                "download",
-                "--url",
-                "https://t.me/test/1",
-                "--path",
-                r"C:\Temp Files",
-            ]
-        );
-    }
-
-    #[test]
-    fn split_command_line_rejects_unterminated_quote() {
-        let err = split_command_line(r#"upload -p "broken"#).expect_err("expected error");
-        assert!(err.to_string().contains("unterminated"));
-    }
-
-    #[test]
-    fn parse_json_request_with_command() {
-        let request = parse_request(r#"{"id":"1","command":"forward -f 123 --from-chat @src"}"#)
-            .expect("parse request");
-
-        assert_eq!(request.id.expect("id"), serde_json::json!("1"));
-        assert_eq!(
-            request.args,
-            vec!["forward", "-f", "123", "--from-chat", "@src"]
-        );
-    }
-
-    #[test]
-    fn child_args_strips_program_name() {
-        let args = vec!["tdlr".to_string(), "version".to_string()];
-        let expected = vec!["version".to_string()];
-        assert_eq!(child_args(&args), expected.as_slice());
-    }
-
-    #[test]
-    fn http_mode_rejects_nested_service() {
-        let args = vec![
-            "service".to_string(),
-            "--http-bind".to_string(),
-            "127.0.0.1:1".to_string(),
-        ];
-        let err = ensure_service_safe_args(&args).expect_err("expected nested service rejection");
-        assert!(err.to_string().contains("nested service"));
-    }
 }

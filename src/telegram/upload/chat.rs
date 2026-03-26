@@ -4,6 +4,7 @@ use anyhow::{bail, Result};
 use grammers_client::peer::Peer;
 use grammers_tl_types as tl;
 
+use crate::i18n::{is_zh, pick};
 use crate::telegram::TelegramClient;
 
 /// Resolved chat information
@@ -25,7 +26,7 @@ pub async fn resolve_chat(client: &TelegramClient, chat_str: &str) -> Result<Res
     if chat_str.is_empty() || chat_str == "me" || chat_str == "self" {
         return Ok(ResolvedChat {
             input_peer: tl::types::InputPeerSelf {}.into(),
-            name: "Saved Messages".to_string(),
+            name: pick("收藏夹", "Saved Messages").to_string(),
             peer: None,
             is_public: false,
             noforwards: false,
@@ -69,7 +70,14 @@ async fn resolve_from_link(client: &TelegramClient, link: &str) -> Result<Resolv
                 return resolve_by_id(client, full_id).await;
             }
         }
-        bail!("Invalid private channel link: {}", link);
+        bail!(
+            "{}",
+            if is_zh() {
+                format!("无效的私有频道链接: {}", link)
+            } else {
+                format!("Invalid private channel link: {}", link)
+            }
+        );
     }
 
     // Handle public channel/user links: @username/MESSAGE_ID or username/MESSAGE_ID
@@ -77,7 +85,14 @@ async fn resolve_from_link(client: &TelegramClient, link: &str) -> Result<Resolv
     let username = username.trim_start_matches('@');
 
     if username.is_empty() {
-        bail!("Invalid link: {}", link);
+        bail!(
+            "{}",
+            if is_zh() {
+                format!("无效的链接: {}", link)
+            } else {
+                format!("Invalid link: {}", link)
+            }
+        );
     }
 
     resolve_username(client, username).await
@@ -89,9 +104,15 @@ async fn resolve_username(client: &TelegramClient, username: &str) -> Result<Res
         .inner()
         .resolve_username(username)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Username @{} not found", username))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!(if is_zh() {
+                format!("未找到用户名 @{}", username)
+            } else {
+                format!("Username @{} not found", username)
+            })
+        })?;
 
-    let name = peer.name().unwrap_or("Unknown").to_string();
+    let name = peer.name().unwrap_or(pick("未知", "Unknown")).to_string();
     let input_peer = peer_to_input_peer(&peer);
     let (is_public, noforwards) = extract_chat_flags(&peer);
 
@@ -128,7 +149,7 @@ async fn resolve_by_id(client: &TelegramClient, id: i64) -> Result<ResolvedChat>
         if let Some(peer_id) = peer_id_opt {
             if let Some(peer_ref) = client.get_peer_ref(peer_id).await {
                 if let Ok(peer) = client.inner().resolve_peer(peer_ref).await {
-                    let name = peer.name().unwrap_or("Unknown").to_string();
+                    let name = peer.name().unwrap_or(pick("未知", "Unknown")).to_string();
                     let input_peer = peer_to_input_peer(&peer);
                     let (is_public, noforwards) = extract_chat_flags(&peer);
 
@@ -153,7 +174,7 @@ async fn resolve_by_id(client: &TelegramClient, id: i64) -> Result<ResolvedChat>
 
         // Match against the normalized target_id
         if peer_id == target_id || peer_id == id || peer_id == id.abs() {
-            let name = peer.name().unwrap_or("Unknown").to_string();
+            let name = peer.name().unwrap_or(pick("未知", "Unknown")).to_string();
             let input_peer = peer_to_input_peer(peer);
             let (is_public, noforwards) = extract_chat_flags(peer);
 
@@ -167,7 +188,14 @@ async fn resolve_by_id(client: &TelegramClient, id: i64) -> Result<ResolvedChat>
         }
     }
 
-    bail!("Chat with ID {} not found in dialogs or cache", id);
+    bail!(
+        "{}",
+        if is_zh() {
+            format!("在对话列表或缓存中未找到 ID 为 {} 的聊天", id)
+        } else {
+            format!("Chat with ID {} not found in dialogs or cache", id)
+        }
+    );
 }
 
 /// Extract is_public and noforwards flags from Peer

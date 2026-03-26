@@ -1,5 +1,6 @@
 //! Output formatting utilities for download command
 
+use crate::i18n::pick;
 use crate::utils::TelegramLink;
 
 pub use crate::utils::output::{
@@ -10,9 +11,10 @@ pub use crate::utils::output::{
 /// Print download progress
 pub fn print_progress(index: usize, total: usize, link: &TelegramLink) {
     println!(
-        "[{}/{}] Downloading from {} msg:{}",
+        "[{}/{}] {} {} msg:{}",
         index + 1,
         total,
+        pick("下载自", "Downloading from"),
         link.chat.display(),
         link.effective_message_id()
     );

@@ -2,6 +2,7 @@
 
 use super::output;
 use super::template::{render, TemplateContext};
+use crate::i18n::{is_zh, pick};
 use crate::telegram::download::{
     download_document, download_photo, fetch_message, DocumentInfo, MessageContent, PhotoInfo,
 };
@@ -51,7 +52,10 @@ pub async fn download_link(
         ChatIdentifier::Username(u) => (u.clone(), 0i64), // Will be resolved later
         ChatIdentifier::ChannelId(id) => (format!("-100{}", id), -100 * 10_000_000_000 - id),
         ChatIdentifier::External => {
-            output::print_failure("Plain message ID not supported for download - use full URL");
+            output::print_failure(pick(
+                "下载暂不支持纯消息 ID，请使用完整 URL",
+                "Plain message ID not supported for download - use full URL",
+            ));
             stats.add_failed();
             return Ok(());
         }
@@ -59,9 +63,10 @@ pub async fn download_link(
 
     // For comments, we need special handling
     if link.is_comment() {
-        output::print_failure(
+        output::print_failure(pick(
+            "暂未实现评论下载，请使用直接消息链接",
             "Comment download not yet implemented - please use direct message links",
-        );
+        ));
         stats.add_failed();
         return Ok(());
     }
@@ -72,7 +77,11 @@ pub async fn download_link(
     let (resolved, content_list) = match fetch_message(ctx.client, &chat_str, message_id).await {
         Ok(result) => result,
         Err(e) => {
-            output::print_failure(&format!("Failed to fetch message: {}", e));
+            output::print_failure(&if is_zh() {
+                format!("获取消息失败: {}", e)
+            } else {
+                format!("Failed to fetch message: {}", e)
+            });
             stats.add_failed();
             return Ok(());
         }
@@ -97,7 +106,7 @@ pub async fn download_link(
             MessageContent::Photo(photo, _) => {
                 // Photos are always jpg
                 if !ctx.filter.should_include("jpg") {
-                    output::print_skipped("photo", "jpg");
+                    output::print_skipped(pick("图片", "photo"), "jpg");
                     stats.add_skipped();
                     continue;
                 }
@@ -151,7 +160,7 @@ pub async fn download_link(
             MessageContent::Text(text) => {
                 // Text messages are saved as .txt
                 if !ctx.filter.should_include("txt") {
-                    output::print_skipped("text", "txt");
+                    output::print_skipped(pick("文本", "text"), "txt");
                     stats.add_skipped();
                     continue;
                 }

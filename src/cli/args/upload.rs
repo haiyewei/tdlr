@@ -2,7 +2,7 @@
 
 use clap::Args;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct UploadArgs {
     /// Dirs or files to upload
     #[arg(short, long, required = true, num_args = 1..)]

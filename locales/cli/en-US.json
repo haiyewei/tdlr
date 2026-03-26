@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "code": "en-US",
+    "aliases": ["en", "en-us"]
+  },
+  "headings": {
+    "usage": "Usage",
+    "global_options": "Global Options",
+    "options": "Options",
+    "arguments": "Arguments",
+    "commands": "Commands"
+  },
+  "help": {
+    "root_after_help": "Use --lang zh or --lang en to switch the CLI help language."
+  },
+  "commands": {
+    "root": {
+      "about": "TDLR - Telegram Downloader CLI"
+    },
+    "version": {
+      "about": "Show version information."
+    },
+    "auth": {
+      "about": "Manage Telegram authentication."
+    },
+    "auth.login": {
+      "about": "Manage Telegram accounts."
+    },
+    "auth.login.add": {
+      "about": "Add a new Telegram account."
+    },
+    "auth.login.list": {
+      "about": "List logged in accounts."
+    },
+    "auth.login.remove": {
+      "about": "Remove an account by user ID."
+    },
+    "auth.login.use": {
+      "about": "Switch the active account by user ID."
+    },
+    "auth.logout": {
+      "about": "Logout from one or more accounts."
+    },
+    "auth.status": {
+      "about": "Show the status of all accounts."
+    },
+    "upload": {
+      "about": "Upload files or directories to Telegram."
+    },
+    "download": {
+      "about": "Download files from Telegram message URLs."
+    },
+    "forward": {
+      "about": "Forward messages from one chat to another."
+    },
+    "service": {
+      "about": "Run in long-lived service mode over stdio or HTTP."
+    }
+  },
+  "args": {
+    "help": "Print help for the current command.",
+    "version": "Print version information.",
+    "lang": "CLI help language. Supports zh and en.",
+    "id": "Target account user ID.",
+    "all": "Apply to all accounts.",
+    "name": "Optional account display name.",
+    "method": "Login method.",
+    "url": "Telegram message URLs.",
+    "path": "Path value.",
+    "include": "Only include the specified file extensions.",
+    "exclude": "Exclude the specified file extensions.",
+    "template": "Filename template.",
+    "account": "Account user ID.",
+    "from": "Source message URLs or IDs.",
+    "from_chat": "Source chat used with plain message IDs.",
+    "to": "Destination value.",
+    "mode": "Forward mode.",
+    "topic": "Topic ID for forum groups.",
+    "drop_author": "Send as copy without the forward header.",
+    "rm": "Remove files after successful upload.",
+    "all_accounts": "Use all accounts.",
+    "chat": "Chat ID or username.",
+    "caption": "Caption HTML sent as-is.",
+    "group": "Send files as a media group.",
+    "json_events": "Print machine-readable lifecycle events for stdio clients.",
+    "http_bind": "Serve the HTTP API on host:port instead of stdio mode."
+  },
+  "command_args": {
+    "root.lang": "CLI help language. Supported values: zh, en.",
+    "auth.logout.id": "User ID to logout. Uses the active account when omitted.",
+    "auth.login.add.method": "Login method. Supported values: phone, qr.",
+    "upload.path": "Files or directories to upload.",
+    "upload.chat": "Destination chat ID or username. Defaults to Saved Messages.",
+    "upload.account": "Account user ID(s) to use. Defaults to the active account.",
+    "upload.to": "Destination peer expression. Conflicts with --chat and --topic.",
+    "upload.group": "Send files as a media group or album. Maximum 10 per group.",
+    "download.path": "Output directory. Defaults to the current directory.",
+    "download.account": "Account user ID to use. Defaults to the active account.",
+    "download.template": "Filename template used for saved files.",
+    "forward.from": "Source message URLs or plain message IDs.",
+    "forward.from_chat": "Source chat required when --from uses plain message IDs.",
+    "forward.to": "Destination chat ID or username. Defaults to Saved Messages.",
+    "forward.mode": "Forward mode. Supported values: direct, clone, smart.",
+    "forward.account": "Account user ID to use. Defaults to the active account.",
+    "service.http_bind": "Listen on host:port and expose the HTTP API.",
+    "service.json_events": "Emit JSON lifecycle events in stdio service mode."
+  }
+}

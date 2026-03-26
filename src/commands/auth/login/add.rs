@@ -1,6 +1,7 @@
 //! Add account command
 
 use crate::cli::LoginMethod;
+use crate::i18n::pick;
 use crate::telegram::{
     auth::{login_with_phone, login_with_qrcode},
     session::AccountInfo,
@@ -31,14 +32,17 @@ pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
 
     let temp_session = SessionManager::session_path_str(&temp_name);
 
-    println!("{}", "Connecting to Telegram...".dimmed());
+    println!(
+        "{}",
+        pick("正在连接 Telegram...", "Connecting to Telegram...").dimmed()
+    );
 
     // Login and get user info
     let (user_id, display_name, username) = {
         let tg = TelegramClient::new_temp(&temp_name, api_id()).await?;
 
         let user = if tg.is_authorized().await? {
-            println!("{}", "Already logged in!".yellow());
+            println!("{}", pick("已经登录。", "Already logged in!").yellow());
             tg.get_me().await?
         } else {
             match method {
@@ -49,7 +53,9 @@ pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
 
         (
             user.raw.id(),
-            user.first_name().unwrap_or("User").to_string(),
+            user.first_name()
+                .unwrap_or(pick("用户", "User"))
+                .to_string(),
             user.username().map(|s| s.to_string()),
         )
         // tg is dropped here, releasing the file lock
@@ -63,7 +69,12 @@ pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
     if final_path.exists() {
         println!(
             "{}",
-            format!("Updating existing account {}...", user_id).yellow()
+            if crate::i18n::is_zh() {
+                format!("正在更新已有账号 {}...", user_id)
+            } else {
+                format!("Updating existing account {}...", user_id)
+            }
+            .yellow()
         );
         let _ = fs::remove_file(&final_path);
     }
@@ -79,9 +90,16 @@ pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
     // Set as active
     SessionManager::set_active(user_id)?;
 
-    println!("\n{} {}", "✓".green(), "Account added!".green().bold());
+    println!(
+        "\n{} {}",
+        "✓".green(),
+        pick("账号已添加。", "Account added!").green().bold()
+    );
     println!("  {}: {}", "ID".cyan(), user_id);
-    println!("  {}: {}", "Name".cyan(), display_name);
-    println!("  {}", "(Set as active)".dimmed());
+    println!("  {}: {}", pick("名称", "Name").cyan(), display_name);
+    println!(
+        "  {}",
+        pick("(已设为当前活跃账号)", "(Set as active)").dimmed()
+    );
     Ok(())
 }

@@ -12,6 +12,8 @@ use anyhow::{bail, Result};
 use regex::Regex;
 use std::sync::LazyLock;
 
+use crate::i18n::{is_zh, pick};
+
 /// Chat identifier type
 #[derive(Debug, Clone)]
 pub enum ChatIdentifier {
@@ -29,7 +31,7 @@ impl ChatIdentifier {
         match self {
             ChatIdentifier::Username(u) => format!("@{}", u),
             ChatIdentifier::ChannelId(id) => format!("c/{}", id),
-            ChatIdentifier::External => "(external)".to_string(),
+            ChatIdentifier::External => pick("(外部)", "(external)").to_string(),
         }
     }
 }
@@ -109,7 +111,14 @@ pub fn parse_link(url: &str) -> Result<TelegramLink> {
         });
     }
 
-    bail!("Invalid Telegram URL format: {}", url);
+    bail!(
+        "{}",
+        if is_zh() {
+            format!("无效的 Telegram URL 格式: {}", url)
+        } else {
+            format!("Invalid Telegram URL format: {}", url)
+        }
+    );
 }
 
 /// Parse a source string (URL or plain message ID)

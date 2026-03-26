@@ -1,5 +1,6 @@
 //! Output formatting utilities for upload command
 
+use crate::i18n::pick;
 use colored::Colorize;
 use std::path::Path;
 
@@ -14,7 +15,7 @@ pub fn print_progress(index: usize, total: usize, path: &Path) {
         "\n[{}/{}] {} {}",
         index + 1,
         total,
-        "Uploading:".cyan(),
+        pick("正在上传:", "Uploading:").cyan(),
         path.display()
     );
 }
@@ -27,40 +28,76 @@ pub fn print_summary(success: usize, failed: usize) {
 /// Print media group progress
 pub fn print_group_progress(batch_idx: usize, total_batches: usize, batch_size: usize) {
     println!(
-        "{} Uploading media group [{}/{}] ({} files)",
+        "{} {} [{}/{}] ({} {})",
         "→".cyan(),
+        pick("正在上传媒体组", "Uploading media group"),
         batch_idx + 1,
         total_batches,
-        batch_size
+        batch_size,
+        pick("个文件", "files")
     );
 }
 
 /// Print media group success
 pub fn print_group_success(count: usize) {
-    println!("{} Media group sent ({} files)", "✓".green(), count);
+    println!(
+        "{} {} ({} {})",
+        "✓".green(),
+        pick("媒体组已发送", "Media group sent"),
+        count,
+        pick("个文件", "files")
+    );
 }
 
 /// Print media group failure
 pub fn print_group_failure(error: &str) {
-    println!("{} Media group failed: {}", "✗".red(), error);
+    println!(
+        "{} {}: {}",
+        "✗".red(),
+        pick("媒体组发送失败", "Media group failed"),
+        error
+    );
 }
 
 /// Print skipped files warning
 pub fn print_skipped_files(count: usize, reason: &str) {
-    println!("{} {} file(s) skipped ({})", "⚠".yellow(), count, reason);
+    println!(
+        "{} {} {} ({})",
+        "⚠".yellow(),
+        count,
+        pick("个文件已跳过", "file(s) skipped"),
+        reason
+    );
 }
 
 /// Print no media files warning
 pub fn print_no_media_files() {
-    println!("{} No media files to upload as group", "⚠".yellow());
+    println!(
+        "{} {}",
+        "⚠".yellow(),
+        pick(
+            "没有可作为媒体组上传的媒体文件",
+            "No media files to upload as group"
+        )
+    );
 }
 
 /// Print file removal result
 pub fn print_removed_files(count: usize) {
-    println!("{} {} file(s) removed", "🗑".dimmed(), count);
+    println!(
+        "{} {} {}",
+        "🗑".dimmed(),
+        count,
+        pick("个文件已删除", "file(s) removed")
+    );
 }
 
 /// Print file removal failure
 pub fn print_remove_failure(error: &str) {
-    println!("  {} Failed to remove: {}", "⚠".yellow(), error);
+    println!(
+        "  {} {}: {}",
+        "⚠".yellow(),
+        pick("删除失败", "Failed to remove"),
+        error
+    );
 }

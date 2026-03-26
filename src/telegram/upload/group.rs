@@ -2,6 +2,7 @@
 
 use super::chat::ResolvedChat;
 use super::mime::{is_photo_ext, is_video_ext};
+use crate::i18n::{is_zh, pick};
 use anyhow::{bail, Result};
 use grammers_client::media::Attribute;
 use grammers_client::{media::InputMedia, Client};
@@ -51,11 +52,18 @@ pub async fn upload_media_group(
     caption: Option<&str>,
 ) -> Result<usize> {
     if file_paths.is_empty() {
-        bail!("No files to upload");
+        bail!("{}", pick("没有可上传的文件", "No files to upload"));
     }
 
     if file_paths.len() > MAX_MEDIA_GROUP_SIZE {
-        bail!("Media group cannot exceed {} files", MAX_MEDIA_GROUP_SIZE);
+        bail!(
+            "{}",
+            if is_zh() {
+                format!("媒体组最多不能超过 {} 个文件", MAX_MEDIA_GROUP_SIZE)
+            } else {
+                format!("Media group cannot exceed {} files", MAX_MEDIA_GROUP_SIZE)
+            }
+        );
     }
 
     // send_album requires Peer, not InputPeer

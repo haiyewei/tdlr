@@ -5,6 +5,7 @@ use super::handler::{
     remove_files, upload_media_groups, upload_single_files, UploadContext, UploadStats,
 };
 use super::output;
+use crate::i18n::pick;
 use crate::telegram::{pool, SessionManager};
 use crate::utils::ExtFilter;
 use anyhow::{bail, Result};
@@ -26,7 +27,7 @@ pub async fn run(
     group: bool,
 ) -> Result<()> {
     if paths.is_empty() {
-        bail!("No paths specified");
+        bail!("{}", pick("未指定路径", "No paths specified"));
     }
 
     // Get clients based on account selection
@@ -39,7 +40,13 @@ pub async fn run(
     };
 
     if clients.is_empty() {
-        bail!("No accounts available. Please login first with 'tdlr auth login add'");
+        bail!(
+            "{}",
+            pick(
+                "没有可用账号。请先使用 'tdlr auth login add' 登录。",
+                "No accounts available. Please login first with 'tdlr auth login add'"
+            )
+        );
     }
 
     // Build file filter and collect files
@@ -47,7 +54,10 @@ pub async fn run(
     let (files, initial_failed) = collect_files(&paths, &filter);
 
     if files.is_empty() {
-        bail!("No valid files to upload");
+        bail!(
+            "{}",
+            pick("没有可上传的有效文件", "No valid files to upload")
+        );
     }
 
     let mut stats = UploadStats::default();

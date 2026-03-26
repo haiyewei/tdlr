@@ -1,5 +1,6 @@
 //! Message fetching from Telegram
 
+use crate::i18n::is_zh;
 use crate::telegram::upload::{resolve_chat, ResolvedChat};
 use crate::telegram::TelegramClient;
 use anyhow::{bail, Result};
@@ -84,7 +85,14 @@ pub async fn fetch_message(
     }
 
     if content_list.is_empty() && grouped_id.is_none() {
-        bail!("Message {} not found or empty", message_id);
+        bail!(
+            "{}",
+            if is_zh() {
+                format!("未找到消息 {}，或消息内容为空", message_id)
+            } else {
+                format!("Message {} not found or empty", message_id)
+            }
+        );
     }
 
     Ok((resolved, content_list))

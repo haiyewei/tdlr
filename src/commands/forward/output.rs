@@ -1,6 +1,7 @@
 //! Output formatting for forward command
 //! Re-exports common output utilities
 
+use crate::i18n::pick;
 pub use crate::utils::output::{
     print_account_header, print_failure, print_success_msg_id as print_success,
 };
@@ -12,7 +13,7 @@ use std::io::Write;
 pub fn print_progress(current: usize, total: usize, source: &str) {
     print!(
         "\r{} [{}/{}] {}",
-        "Forwarding".cyan(),
+        pick("正在转发", "Forwarding").cyan(),
         current + 1,
         total,
         source.dimmed()

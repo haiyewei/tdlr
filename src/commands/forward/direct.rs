@@ -1,5 +1,6 @@
 //! Direct forward using Telegram native API
 
+use crate::i18n::pick;
 use crate::telegram::upload::resolve_chat;
 use crate::utils::{ChatIdentifier, TelegramLink};
 use anyhow::{bail, Result};
@@ -27,7 +28,8 @@ pub async fn forward_direct(
             resolved.input_peer
         }
         ChatIdentifier::External => {
-            let chat_str = from_chat.ok_or_else(|| anyhow::anyhow!("--from-chat required"))?;
+            let chat_str = from_chat
+                .ok_or_else(|| anyhow::anyhow!(pick("需要 --from-chat", "--from-chat required")))?;
             let resolved = resolve_chat(tg, chat_str).await?;
             resolved.input_peer
         }
@@ -91,20 +93,34 @@ fn extract_message_id(result: tl::enums::Updates) -> Result<i32> {
                     _ => {}
                 }
             }
-            bail!("No message ID in response");
+            bail!("{}", pick("响应中没有消息 ID", "No message ID in response"));
         }
-        tl::enums::Updates::UpdateShort(_) => bail!("Unexpected UpdateShort response"),
+        tl::enums::Updates::UpdateShort(_) => {
+            bail!(
+                "{}",
+                pick(
+                    "收到意外的 UpdateShort 响应",
+                    "Unexpected UpdateShort response"
+                )
+            )
+        }
         tl::enums::Updates::Combined(c) => {
             for update in c.updates {
                 if let tl::enums::Update::MessageId(msg_id) = update {
                     return Ok(msg_id.id);
                 }
             }
-            bail!("No message ID in Combined response");
+            bail!(
+                "{}",
+                pick(
+                    "Combined 响应中没有消息 ID",
+                    "No message ID in Combined response"
+                )
+            );
         }
         tl::enums::Updates::UpdateShortMessage(m) => Ok(m.id),
         tl::enums::Updates::UpdateShortChatMessage(m) => Ok(m.id),
-        tl::enums::Updates::TooLong => bail!("Updates too long"),
+        tl::enums::Updates::TooLong => bail!("{}", pick("Updates 响应过长", "Updates too long")),
         tl::enums::Updates::UpdateShortSentMessage(m) => Ok(m.id),
     }
 }

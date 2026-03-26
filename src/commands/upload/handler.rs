@@ -3,6 +3,7 @@
 use super::expr::{eval_routing, FileContext};
 use super::file::ValidatedFile;
 use super::output;
+use crate::i18n::{is_zh, pick};
 use crate::telegram::upload::{
     is_media_group_supported, resolve_chat, upload_file, upload_media_group, ResolvedChat,
     MAX_MEDIA_GROUP_SIZE,
@@ -74,7 +75,11 @@ pub async fn upload_single_files(
                     chat_cache.insert(dest, c);
                 }
                 Err(e) => {
-                    output::print_failure(&format!("Failed to resolve '{}': {}", dest, e));
+                    output::print_failure(&if is_zh() {
+                        format!("解析目标 '{}' 失败: {}", dest, e)
+                    } else {
+                        format!("Failed to resolve '{}': {}", dest, e)
+                    });
                 }
             }
         }
@@ -147,7 +152,7 @@ pub async fn upload_media_groups(
 
     let non_media_count = files.len() - media_files.len();
     if non_media_count > 0 {
-        output::print_skipped_files(non_media_count, "not photo/video");
+        output::print_skipped_files(non_media_count, pick("不是图片或视频", "not photo/video"));
         stats.add_failed(non_media_count);
     }
 
@@ -169,7 +174,11 @@ pub async fn upload_media_groups(
     let chat = match resolve_chat(ctx.client, &dest).await {
         Ok(c) => c,
         Err(e) => {
-            output::print_failure(&format!("Failed to resolve '{}': {}", dest, e));
+            output::print_failure(&if is_zh() {
+                format!("解析目标 '{}' 失败: {}", dest, e)
+            } else {
+                format!("Failed to resolve '{}': {}", dest, e)
+            });
             stats.add_failed(media_files.len());
             return Ok(());
         }

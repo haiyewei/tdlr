@@ -1,5 +1,6 @@
 //! File processing utilities for upload
 
+use crate::i18n::pick;
 use crate::utils::ExtFilter;
 use colored::Colorize;
 use std::fs;
@@ -19,7 +20,12 @@ pub fn collect_files(paths: &[String], filter: &ExtFilter) -> (Vec<ValidatedFile
         let path = Path::new(path_str);
 
         if !path.exists() {
-            println!("{} Path not found: {}", "✗".red(), path_str.red());
+            println!(
+                "{} {}: {}",
+                "✗".red(),
+                pick("路径不存在", "Path not found"),
+                path_str.red()
+            );
             failed += 1;
             continue;
         }
@@ -48,7 +54,13 @@ fn collect_from_dir(dir: &Path, filter: &ExtFilter) -> (Vec<ValidatedFile>, usiz
     let entries = match fs::read_dir(dir) {
         Ok(e) => e,
         Err(e) => {
-            println!("{} Cannot read dir {}: {}", "✗".red(), dir.display(), e);
+            println!(
+                "{} {} {}: {}",
+                "✗".red(),
+                pick("无法读取目录", "Cannot read dir"),
+                dir.display(),
+                e
+            );
             return (files, 1);
         }
     };

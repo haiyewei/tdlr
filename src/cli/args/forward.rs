@@ -13,7 +13,7 @@ pub enum ForwardMode {
     Smart,
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ForwardArgs {
     /// Source message URLs or IDs
     #[arg(short, long, required = true, num_args = 1..)]

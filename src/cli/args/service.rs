@@ -2,7 +2,7 @@
 
 use clap::Args;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ServiceArgs {
     /// Print machine-readable lifecycle events for stdio clients
     #[arg(long, default_value_t = true)]

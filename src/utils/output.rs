@@ -1,5 +1,6 @@
 //! Common output formatting utilities
 
+use crate::i18n::{is_zh, pick};
 use colored::Colorize;
 use std::io::Write;
 
@@ -7,7 +8,7 @@ use std::io::Write;
 pub fn print_account_header(name: &str, user_id: i64) {
     println!(
         "\n{} {} ({})",
-        "Account:".cyan().bold(),
+        pick("账号:", "Account:").cyan().bold(),
         name,
         user_id.to_string().dimmed()
     );
@@ -15,11 +16,15 @@ pub fn print_account_header(name: &str, user_id: i64) {
 
 /// Print account not authorized warning
 pub fn print_account_not_authorized(user_id: i64) {
-    println!(
-        "{} Account {} not authorized, skipping",
-        "⚠".yellow(),
-        user_id
-    );
+    if is_zh() {
+        println!("{} 账号 {} 未授权，已跳过", "⚠".yellow(), user_id);
+    } else {
+        println!(
+            "{} Account {} not authorized, skipping",
+            "⚠".yellow(),
+            user_id
+        );
+    }
 }
 
 /// Print success with message ID
@@ -30,7 +35,13 @@ pub fn print_success_msg_id(msg_id: i32) {
 /// Print success with filename and size
 pub fn print_success_file(filename: &str, size: u64) {
     let size_str = super::format_size(size);
-    println!("  {} Saved: {} ({})", "✓".green(), filename, size_str);
+    println!(
+        "  {} {}: {} ({})",
+        "✓".green(),
+        pick("已保存", "Saved"),
+        filename,
+        size_str
+    );
 }
 
 /// Print failure message
@@ -42,14 +53,27 @@ pub fn print_failure(error: &str) {
 pub fn print_summary(operation: &str, success: usize, failed: usize) {
     println!();
     if failed == 0 {
-        println!("{} {} {} successfully.", "✓".green(), success, operation);
+        if is_zh() {
+            println!("{} 成功 {} 项。", "✓".green(), success);
+        } else {
+            println!("{} {} {} successfully.", "✓".green(), success, operation);
+        }
     } else {
-        println!(
-            "{} {} succeeded, {} failed.",
-            "Done:".cyan(),
-            success.to_string().green(),
-            failed.to_string().red()
-        );
+        if is_zh() {
+            println!(
+                "{} 成功 {} 项，失败 {} 项。",
+                pick("完成:", "Done:").cyan(),
+                success.to_string().green(),
+                failed.to_string().red()
+            );
+        } else {
+            println!(
+                "{} {} succeeded, {} failed.",
+                "Done:".cyan(),
+                success.to_string().green(),
+                failed.to_string().red()
+            );
+        }
     }
 }
 
@@ -83,10 +107,20 @@ pub fn print_warning(message: &str) {
 
 /// Print skipped item
 pub fn print_skipped(item: &str, reason: &str) {
-    println!("  {} Skipped: {} ({})", "⊘".dimmed(), item, reason);
+    println!(
+        "  {} {}: {} ({})",
+        "⊘".dimmed(),
+        pick("已跳过", "Skipped"),
+        item,
+        reason
+    );
 }
 
 /// Print no media found
 pub fn print_no_media() {
-    println!("  {} No downloadable media in message", "⚠".yellow());
+    println!(
+        "  {} {}",
+        "⚠".yellow(),
+        pick("消息中没有可下载的媒体", "No downloadable media in message")
+    );
 }

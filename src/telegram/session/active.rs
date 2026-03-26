@@ -1,5 +1,6 @@
 //! Active account tracking
 
+use crate::i18n::is_zh;
 use anyhow::{bail, Result};
 use std::fs;
 
@@ -22,7 +23,14 @@ pub fn set_active(user_id: i64) -> Result<()> {
     super::manager::ensure_dir()?;
 
     if !super::manager::session_path(user_id).exists() {
-        bail!("Account {} not found", user_id);
+        bail!(
+            "{}",
+            if is_zh() {
+                format!("未找到账号 {}", user_id)
+            } else {
+                format!("Account {} not found", user_id)
+            }
+        );
     }
 
     fs::write(super::manager::active_file(), user_id.to_string())?;

@@ -1,5 +1,6 @@
 //! List accounts command
 
+use crate::i18n::{is_zh, pick};
 use crate::telegram::SessionManager;
 use anyhow::Result;
 use colored::Colorize;
@@ -11,15 +12,23 @@ pub fn run() -> Result<()> {
     if accounts.is_empty() {
         println!(
             "{}",
-            "No accounts. Use 'tdlr auth login add' to add one.".yellow()
+            pick(
+                "暂无账号。请先使用 'tdlr auth login add' 添加账号。",
+                "No accounts. Use 'tdlr auth login add' to add one."
+            )
+            .yellow()
         );
         return Ok(());
     }
 
-    println!("{}:", "Accounts".cyan().bold());
+    println!("{}:", pick("账号", "Accounts").cyan().bold());
     for account in accounts {
         let marker = if active == Some(account.user_id) {
-            " (active)".green().to_string()
+            if is_zh() {
+                "（当前）".green().to_string()
+            } else {
+                " (active)".green().to_string()
+            }
         } else {
             "".to_string()
         };

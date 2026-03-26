@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "code": "zh-CN",
+    "aliases": ["zh", "zh-cn", "zh-hans"]
+  },
+  "headings": {
+    "usage": "用法",
+    "global_options": "全局选项",
+    "options": "选项",
+    "arguments": "参数",
+    "commands": "命令"
+  },
+  "help": {
+    "root_after_help": "使用 --lang zh 或 --lang en 切换 CLI 帮助语言。"
+  },
+  "commands": {
+    "root": {
+      "about": "TDLR - Telegram 下载 CLI"
+    },
+    "version": {
+      "about": "显示版本信息。"
+    },
+    "auth": {
+      "about": "管理 Telegram 认证。"
+    },
+    "auth.login": {
+      "about": "管理 Telegram 账号。"
+    },
+    "auth.login.add": {
+      "about": "添加一个新的 Telegram 账号。"
+    },
+    "auth.login.list": {
+      "about": "列出已登录账号。"
+    },
+    "auth.login.remove": {
+      "about": "按用户 ID 删除账号。"
+    },
+    "auth.login.use": {
+      "about": "按用户 ID 切换当前活跃账号。"
+    },
+    "auth.logout": {
+      "about": "退出一个或多个账号。"
+    },
+    "auth.status": {
+      "about": "显示所有账号状态。"
+    },
+    "upload": {
+      "about": "上传文件或目录到 Telegram。"
+    },
+    "download": {
+      "about": "从 Telegram 消息链接下载文件。"
+    },
+    "forward": {
+      "about": "把消息从一个聊天转发到另一个聊天。"
+    },
+    "service": {
+      "about": "以长期运行的 stdio 或 HTTP 服务模式启动。"
+    }
+  },
+  "args": {
+    "help": "显示当前命令的帮助信息。",
+    "version": "显示版本信息。",
+    "lang": "CLI 帮助语言。支持 zh 和 en。",
+    "id": "目标账号用户 ID。",
+    "all": "作用于所有账号。",
+    "name": "可选的账号显示名称。",
+    "method": "登录方式。",
+    "url": "Telegram 消息 URL。",
+    "path": "路径值。",
+    "include": "仅包含指定文件扩展名。",
+    "exclude": "排除指定文件扩展名。",
+    "template": "文件名模板。",
+    "account": "账号用户 ID。",
+    "from": "源消息 URL 或消息 ID。",
+    "from_chat": "使用纯消息 ID 时对应的源聊天。",
+    "to": "目标值。",
+    "mode": "转发模式。",
+    "topic": "论坛群组的话题 ID。",
+    "drop_author": "以副本方式发送，不保留转发头。",
+    "rm": "上传成功后删除文件。",
+    "all_accounts": "使用所有账号。",
+    "chat": "聊天 ID 或用户名。",
+    "caption": "原样发送的 HTML 标题。",
+    "group": "以媒体组方式发送文件。",
+    "json_events": "为 stdio 客户端输出机器可读的生命周期事件。",
+    "http_bind": "使用 host:port 启动 HTTP API，而不是 stdio 模式。"
+  },
+  "command_args": {
+    "root.lang": "CLI 帮助语言。可选值：zh、en。",
+    "auth.logout.id": "要退出的用户 ID。未提供时使用当前活跃账号。",
+    "auth.login.add.method": "登录方式。可选值：phone、qr。",
+    "upload.path": "要上传的文件或目录。",
+    "upload.chat": "目标聊天 ID 或用户名。默认发送到 Saved Messages。",
+    "upload.account": "要使用的账号用户 ID，可传多个。默认使用当前活跃账号。",
+    "upload.to": "目标 peer 表达式。与 --chat、--topic 冲突。",
+    "upload.group": "以媒体组或相册发送文件。每组最多 10 个。",
+    "download.path": "输出目录。默认使用当前目录。",
+    "download.account": "要使用的账号用户 ID。默认使用当前活跃账号。",
+    "download.template": "保存文件时使用的文件名模板。",
+    "forward.from": "源消息 URL 或纯消息 ID。",
+    "forward.from_chat": "当 --from 使用纯消息 ID 时必须指定的源聊天。",
+    "forward.to": "目标聊天 ID 或用户名。默认发送到 Saved Messages。",
+    "forward.mode": "转发模式。可选值：direct、clone、smart。",
+    "forward.account": "要使用的账号用户 ID。默认使用当前活跃账号。",
+    "service.http_bind": "监听 host:port 并暴露 HTTP API。",
+    "service.json_events": "在 stdio 服务模式下输出 JSON 生命周期事件。"
+  }
+}

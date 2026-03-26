@@ -4,6 +4,7 @@ use super::clone;
 use super::direct;
 use super::output;
 use crate::cli::ForwardMode;
+use crate::i18n::{is_zh, pick};
 use crate::telegram::upload::{resolve_chat, ResolvedChat};
 use crate::telegram::{pool, SessionManager};
 use crate::utils::{parse_source, ChatIdentifier, TelegramLink};
@@ -20,7 +21,7 @@ pub async fn run(
     drop_author: bool,
 ) -> Result<()> {
     if from.is_empty() {
-        bail!("No source messages specified");
+        bail!("{}", pick("未指定源消息", "No source messages specified"));
     }
 
     // Parse all sources
@@ -28,18 +29,24 @@ pub async fn run(
     for input in &from {
         match parse_source(input) {
             Ok(src) => sources.push(src),
-            Err(e) => eprintln!("Warning: {}", e),
+            Err(e) => eprintln!("{}: {}", pick("警告", "Warning"), e),
         }
     }
 
     if sources.is_empty() {
-        bail!("No valid source messages");
+        bail!("{}", pick("没有有效的源消息", "No valid source messages"));
     }
 
     // Check if any source needs --from-chat
     let needs_from_chat = sources.iter().any(|s| s.is_external());
     if needs_from_chat && from_chat.is_none() {
-        bail!("--from-chat is required when using plain message IDs");
+        bail!(
+            "{}",
+            pick(
+                "当使用纯消息 ID 时，必须提供 --from-chat",
+                "--from-chat is required when using plain message IDs"
+            )
+        );
     }
 
     // Get client
@@ -51,8 +58,15 @@ pub async fn run(
 
     if !client.is_authorized().await? {
         bail!(
-            "Account {} not authorized. Please login first.",
-            client.user_id
+            "{}",
+            if is_zh() {
+                format!("账号 {} 未授权。请先登录。", client.user_id)
+            } else {
+                format!(
+                    "Account {} not authorized. Please login first.",
+                    client.user_id
+                )
+            }
         );
     }
 
@@ -66,7 +80,7 @@ pub async fn run(
     // Resolve destination chat
     let dest_str = to.as_deref().unwrap_or("");
     let dest = resolve_chat(&client, dest_str).await?;
-    println!("  {} {}", "To:".cyan(), dest.name);
+    println!("  {} {}", pick("目标:", "To:").cyan(), dest.name);
 
     let mut success = 0usize;
     let mut failed = 0usize;
@@ -94,8 +108,8 @@ pub async fn run(
 
         // Show mode indicator
         let mode_str = match actual_mode {
-            ForwardMode::Direct => "direct",
-            ForwardMode::Clone => "clone",
+            ForwardMode::Direct => pick("直转", "direct"),
+            ForwardMode::Clone => pick("克隆", "clone"),
             ForwardMode::Smart => unreachable!(),
         };
         print!(" [{}]", mode_str.dimmed());
@@ -146,7 +160,7 @@ async fn resolve_source_chat(
         ChatIdentifier::Username(u) => u.clone(),
         ChatIdentifier::ChannelId(id) => format!("-100{}", id),
         ChatIdentifier::External => from_chat
-            .ok_or_else(|| anyhow::anyhow!("--from-chat required"))?
+            .ok_or_else(|| anyhow::anyhow!(pick("需要 --from-chat", "--from-chat required")))?
             .to_string(),
     };
     resolve_chat(client, &chat_str).await

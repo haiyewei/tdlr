@@ -3,6 +3,7 @@
 use super::handler::{download_link, DownloadContext, DownloadStats};
 use super::output;
 use super::template::DEFAULT_TEMPLATE;
+use crate::i18n::{is_zh, pick};
 use crate::telegram::{pool, SessionManager};
 use crate::utils::{parse_link, ExtFilter};
 use anyhow::{bail, Result};
@@ -17,7 +18,7 @@ pub async fn run(
     account: Option<i64>,
 ) -> Result<()> {
     if urls.is_empty() {
-        bail!("No URLs specified");
+        bail!("{}", pick("未指定 URL", "No URLs specified"));
     }
 
     // Parse all URLs first
@@ -26,13 +27,24 @@ pub async fn run(
         match parse_link(url) {
             Ok(link) => links.push(link),
             Err(e) => {
-                eprintln!("Warning: Invalid URL '{}': {}", url, e);
+                eprintln!(
+                    "{}: {}",
+                    pick("警告", "Warning"),
+                    if is_zh() {
+                        format!("无效的 URL '{}': {}", url, e)
+                    } else {
+                        format!("Invalid URL '{}': {}", url, e)
+                    }
+                );
             }
         }
     }
 
     if links.is_empty() {
-        bail!("No valid URLs to download");
+        bail!(
+            "{}",
+            pick("没有可下载的有效 URL", "No valid URLs to download")
+        );
     }
 
     // Ensure output directory exists
@@ -50,8 +62,18 @@ pub async fn run(
 
     if !client.is_authorized().await? {
         bail!(
-            "Account {} not authorized. Please login first with 'tdlr auth login add'",
-            client.user_id
+            "{}",
+            if is_zh() {
+                format!(
+                    "账号 {} 未授权。请先使用 'tdlr auth login add' 登录。",
+                    client.user_id
+                )
+            } else {
+                format!(
+                    "Account {} not authorized. Please login first with 'tdlr auth login add'",
+                    client.user_id
+                )
+            }
         );
     }
 

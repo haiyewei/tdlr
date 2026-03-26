@@ -1,6 +1,7 @@
 //! Client pool for multi-account management
 
 use super::instance::TelegramClient;
+use crate::i18n::is_zh;
 use crate::telegram::session::SessionManager;
 use anyhow::{bail, Result};
 use std::collections::HashMap;
@@ -34,7 +35,14 @@ impl ClientPool {
 
         // Create new client
         if !SessionManager::exists(user_id) {
-            bail!("Account {} not found", user_id);
+            bail!(
+                "{}",
+                if is_zh() {
+                    format!("未找到账号 {}", user_id)
+                } else {
+                    format!("Account {} not found", user_id)
+                }
+            );
         }
 
         let client = Arc::new(TelegramClient::new(user_id, self.api_id).await?);
@@ -50,8 +58,13 @@ impl ClientPool {
 
     /// Get the active account's client
     pub async fn get_active(&self) -> Result<Arc<TelegramClient>> {
-        let user_id =
-            SessionManager::get_active()?.ok_or_else(|| anyhow::anyhow!("No active account"))?;
+        let user_id = SessionManager::get_active()?.ok_or_else(|| {
+            anyhow::anyhow!(if is_zh() {
+                "当前没有活跃账号".to_string()
+            } else {
+                "No active account".to_string()
+            })
+        })?;
         self.get(user_id).await
     }
 
@@ -68,7 +81,15 @@ impl ClientPool {
         for &user_id in user_ids {
             match self.get(user_id).await {
                 Ok(client) => result.push(client),
-                Err(e) => eprintln!("Failed to load {}: {}", user_id, e),
+                Err(e) => eprintln!(
+                    "{}: {}",
+                    if is_zh() {
+                        format!("加载账号 {} 失败", user_id)
+                    } else {
+                        format!("Failed to load {}", user_id)
+                    },
+                    e
+                ),
             }
         }
 

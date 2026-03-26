@@ -1,5 +1,6 @@
 //! Clone forward: download then re-upload
 
+use crate::i18n::pick;
 use crate::telegram::download::{
     download_document_with_progress, download_photo_with_progress, fetch_message, DocumentInfo,
     MessageContent, PhotoInfo,
@@ -133,7 +134,7 @@ pub async fn forward_clone(
         ChatIdentifier::Username(u) => u.clone(),
         ChatIdentifier::ChannelId(id) => format!("-100{}", id),
         ChatIdentifier::External => from_chat
-            .ok_or_else(|| anyhow::anyhow!("--from-chat required"))?
+            .ok_or_else(|| anyhow::anyhow!(pick("需要 --from-chat", "--from-chat required")))?
             .to_string(),
     };
 
@@ -143,7 +144,7 @@ pub async fn forward_clone(
     let (_resolved, content_list) = fetch_message(tg, &chat_str, message_id).await?;
 
     if content_list.is_empty() {
-        bail!("Message is empty");
+        bail!("{}", pick("消息为空", "Message is empty"));
     }
 
     // Create temp directory for downloads
@@ -169,7 +170,7 @@ pub async fn forward_clone(
     let _ = std::fs::remove_dir_all(&temp_dir);
 
     if last_msg_id == 0 {
-        bail!("No content forwarded");
+        bail!("{}", pick("没有转发任何内容", "No content forwarded"));
     }
 
     Ok(last_msg_id)

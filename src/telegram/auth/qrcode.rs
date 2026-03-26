@@ -9,6 +9,7 @@
 //!
 //! After DC migration, the session's home DC is automatically updated.
 
+use crate::i18n::{is_zh, pick};
 use crate::telegram::TelegramClient;
 use anyhow::{bail, Context, Result};
 use grammers_tl_types as tl;
@@ -31,8 +32,12 @@ fn render_qr(url: &str) {
             println!("{}", image);
         }
         Err(e) => {
-            eprintln!("Failed to generate QR code: {}", e);
-            println!("Login URL: {}", url);
+            eprintln!(
+                "{}: {}",
+                pick("生成二维码失败", "Failed to generate QR code"),
+                e
+            );
+            println!("{}: {}", pick("登录链接", "Login URL"), url);
         }
     }
 }
@@ -70,7 +75,13 @@ async fn try_import_login(
             Err(e) => {
                 let err_str = format!("{:?}", e);
                 if err_str.contains("SESSION_PASSWORD_NEEDED") {
-                    bail!("2FA required. Use: tdlr auth login add --method phone");
+                    bail!(
+                        "{}",
+                        pick(
+                            "需要两步验证。请使用: tdlr auth login add --method phone",
+                            "2FA required. Use: tdlr auth login add --method phone"
+                        )
+                    );
                 }
                 if err_str.contains("AUTH_TOKEN_ALREADY_ACCEPTED") {
                     tg.set_home_dc_id(dc_id).await;
@@ -103,9 +114,21 @@ pub async fn login_with_qrcode(
     api_hash: &str,
 ) -> Result<grammers_client::peer::User> {
     let client = tg.inner();
-    println!("\n=== QR Code Login ===");
-    println!("Scan the QR code with your Telegram app:");
-    println!("(Open Telegram > Settings > Devices > Link Desktop Device)\n");
+    println!("\n=== {} ===", pick("二维码登录", "QR Code Login"));
+    println!(
+        "{}",
+        pick(
+            "请使用 Telegram 应用扫描二维码：",
+            "Scan the QR code with your Telegram app:"
+        )
+    );
+    println!(
+        "{}\n",
+        pick(
+            "（打开 Telegram > 设置 > 设备 > 关联桌面设备）",
+            "(Open Telegram > Settings > Devices > Link Desktop Device)"
+        )
+    );
 
     // Input listener for manual refresh
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -127,11 +150,17 @@ pub async fn login_with_qrcode(
     loop {
         // If we have a pending migration from previous iteration, try to complete it first
         if let Some((dc_id, token)) = pending_migration.take() {
-            println!("Completing login...");
+            println!("{}", pick("正在完成登录...", "Completing login..."));
             if let Some(user) = try_import_login(tg, dc_id, token).await? {
                 return Ok(user);
             }
-            println!("Session expired, generating new QR...\n");
+            println!(
+                "{}",
+                pick(
+                    "会话已过期，正在生成新的二维码...\n",
+                    "Session expired, generating new QR...\n"
+                )
+            );
         }
 
         // Step 1: Export login token
@@ -144,7 +173,7 @@ pub async fn login_with_qrcode(
         let result = client
             .invoke(&export_request)
             .await
-            .context("Failed to export login token")?;
+            .context(pick("导出登录令牌失败", "Failed to export login token"))?;
 
         let token = match result {
             tl::enums::auth::LoginToken::Token(t) => t,
@@ -153,11 +182,17 @@ pub async fn login_with_qrcode(
             }
             tl::enums::auth::LoginToken::MigrateTo(m) => {
                 // QR was already scanned, try to complete
-                println!("Completing login...");
+                println!("{}", pick("正在完成登录...", "Completing login..."));
                 if let Some(user) = try_import_login(tg, m.dc_id, m.token).await? {
                     return Ok(user);
                 }
-                println!("Session expired, generating new QR...\n");
+                println!(
+                    "{}",
+                    pick(
+                        "会话已过期，正在生成新的二维码...\n",
+                        "Session expired, generating new QR...\n"
+                    )
+                );
                 // Wait a bit before generating new QR to avoid rapid loop
                 tokio::time::sleep(Duration::from_secs(2)).await;
                 continue;
@@ -169,20 +204,27 @@ pub async fn login_with_qrcode(
         render_qr(&url);
 
         let expires_in = (token.expires - now()).max(1);
-        println!("Waiting for scan... (expires in {}s)", expires_in);
-        println!("Press Enter to refresh.\n");
+        if is_zh() {
+            println!("等待扫描...（{} 秒后过期）", expires_in);
+        } else {
+            println!("Waiting for scan... (expires in {}s)", expires_in);
+        }
+        println!("{}", pick("按回车刷新。\n", "Press Enter to refresh.\n"));
 
         let deadline = tokio::time::Instant::now() + Duration::from_secs(expires_in as u64);
 
         // Step 3: Poll until success or MigrateTo
         loop {
             if rx.try_recv().is_ok() {
-                println!("Refreshing...\n");
+                println!("{}", pick("正在刷新...\n", "Refreshing...\n"));
                 break;
             }
 
             if tokio::time::Instant::now() >= deadline {
-                println!("QR expired, refreshing...\n");
+                println!(
+                    "{}",
+                    pick("二维码已过期，正在刷新...\n", "QR expired, refreshing...\n")
+                );
                 break;
             }
 
@@ -198,7 +240,13 @@ pub async fn login_with_qrcode(
                 }
                 Ok(tl::enums::auth::LoginToken::MigrateTo(m)) => {
                     // QR was scanned! Try to complete login
-                    println!("QR scanned! Completing login...");
+                    println!(
+                        "{}",
+                        pick(
+                            "二维码已扫描，正在完成登录...",
+                            "QR scanned! Completing login..."
+                        )
+                    );
                     if let Some(user) = try_import_login(tg, m.dc_id, m.token.clone()).await? {
                         return Ok(user);
                     }
@@ -209,7 +257,13 @@ pub async fn login_with_qrcode(
                 Err(e) => {
                     let err_str = format!("{:?}", e);
                     if err_str.contains("SESSION_PASSWORD_NEEDED") {
-                        bail!("2FA required. Use: tdlr auth login add --method phone");
+                        bail!(
+                            "{}",
+                            pick(
+                                "需要两步验证。请使用: tdlr auth login add --method phone",
+                                "2FA required. Use: tdlr auth login add --method phone"
+                            )
+                        );
                     }
                     // Other errors, keep polling
                     continue;
@@ -227,10 +281,17 @@ async fn handle_success(
     match success.authorization {
         tl::enums::auth::Authorization::Authorization(auth) => {
             if let tl::enums::User::User(raw_user) = auth.user {
-                let name = raw_user.first_name.as_deref().unwrap_or("User");
+                let name = raw_user
+                    .first_name
+                    .as_deref()
+                    .unwrap_or(pick("用户", "User"));
 
-                println!("\n✓ Login successful!");
-                println!("Welcome, {}!", name);
+                println!("\n✓ {}", pick("登录成功。", "Login successful!"));
+                if is_zh() {
+                    println!("欢迎，{}！", name);
+                } else {
+                    println!("Welcome, {}!", name);
+                }
 
                 // If we migrated to a different DC, update session's home DC
                 if let Some(dc_id) = migrated_dc {
@@ -243,11 +304,17 @@ async fn handle_success(
                 // Now get_me should work
                 Ok(tg.get_me().await?)
             } else {
-                bail!("Unexpected user type");
+                bail!("{}", pick("意外的用户类型", "Unexpected user type"));
             }
         }
         tl::enums::auth::Authorization::SignUpRequired(_) => {
-            bail!("Sign up required. Please register with official Telegram app first.");
+            bail!(
+                "{}",
+                pick(
+                    "需要先注册账号。请先使用官方 Telegram 应用完成注册。",
+                    "Sign up required. Please register with official Telegram app first."
+                )
+            );
         }
     }
 }

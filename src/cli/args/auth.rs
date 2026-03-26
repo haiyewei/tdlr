@@ -2,7 +2,7 @@
 
 use clap::{Subcommand, ValueEnum};
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum AuthCommands {
     /// Login - manage Telegram accounts
     #[command(subcommand)]
@@ -20,7 +20,7 @@ pub enum AuthCommands {
     Status,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum LoginCommands {
     /// Add a new Telegram account
     Add {

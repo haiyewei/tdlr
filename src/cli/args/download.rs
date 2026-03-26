@@ -2,7 +2,7 @@
 
 use clap::Args;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct DownloadArgs {
     /// Telegram message URLs to download
     #[arg(short, long, required = true, num_args = 1..)]

@@ -5,17 +5,22 @@ use super::download::DownloadArgs;
 use super::forward::ForwardArgs;
 use super::service::ServiceArgs;
 use super::upload::UploadArgs;
+use crate::i18n::Language;
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(name = "tdlr")]
 #[command(author, version = env!("TDLR_VERSION"), about = "TDLR - Telegram Downloader CLI")]
 pub struct Cli {
+    /// CLI help language. Supports `zh` and `en`.
+    #[arg(long, global = true, env = "TDLR_LANG", value_name = "LANG")]
+    pub lang: Option<Language>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Show version information
     Version,

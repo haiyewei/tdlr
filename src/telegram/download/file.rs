@@ -1,5 +1,6 @@
 //! File download with progress and multi-threaded support
 
+use crate::i18n::pick;
 use crate::utils::create_progress_bar;
 use anyhow::{bail, Result};
 use grammers_client::Client;
@@ -403,7 +404,10 @@ async fn download_file_parallel_progress(
             let bytes = match result {
                 Ok(tl::enums::upload::File::File(f)) => f.bytes,
                 Ok(tl::enums::upload::File::CdnRedirect(_)) => {
-                    return Err(anyhow::anyhow!("CDN redirect not supported"));
+                    return Err(anyhow::anyhow!(pick(
+                        "暂不支持 CDN 重定向",
+                        "CDN redirect not supported"
+                    )));
                 }
                 Err(e) => return Err(e.into()),
             };
@@ -497,7 +501,10 @@ async fn download_file_sequential_progress(
         let bytes = match result {
             tl::enums::upload::File::File(f) => f.bytes,
             tl::enums::upload::File::CdnRedirect(_) => {
-                bail!("CDN redirect not supported");
+                bail!(
+                    "{}",
+                    pick("暂不支持 CDN 重定向", "CDN redirect not supported")
+                );
             }
         };
 
