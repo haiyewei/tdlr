@@ -18,6 +18,12 @@ use tokio::io::{AsyncRead, ReadBuf};
 /// Maximum files per media group (Telegram limit)
 pub const MAX_MEDIA_GROUP_SIZE: usize = 10;
 
+#[derive(Clone, Copy)]
+pub struct UploadMediaItem<'a> {
+    pub file_path: &'a Path,
+    pub thumbnail_path: Option<&'a Path>,
+}
+
 /// Progress-tracking wrapper for AsyncRead
 struct ProgressReader {
     inner: File,
@@ -51,11 +57,29 @@ pub async fn upload_media_group(
     topic_id: Option<i32>,
     caption: Option<&str>,
 ) -> Result<usize> {
-    if file_paths.is_empty() {
+    let items: Vec<_> = file_paths
+        .iter()
+        .map(|path| UploadMediaItem {
+            file_path: path,
+            thumbnail_path: None,
+        })
+        .collect();
+
+    upload_media_group_with_thumbnails(client, &items, chat, topic_id, caption).await
+}
+
+pub async fn upload_media_group_with_thumbnails(
+    client: &Client,
+    items: &[UploadMediaItem<'_>],
+    chat: &ResolvedChat,
+    topic_id: Option<i32>,
+    caption: Option<&str>,
+) -> Result<usize> {
+    if items.is_empty() {
         bail!("{}", pick("没有可上传的文件", "No files to upload"));
     }
 
-    if file_paths.len() > MAX_MEDIA_GROUP_SIZE {
+    if items.len() > MAX_MEDIA_GROUP_SIZE {
         bail!(
             "{}",
             if is_zh() {
@@ -72,7 +96,8 @@ pub async fn upload_media_group(
     let multi = MultiProgress::new();
     let mut media_items: Vec<InputMedia> = Vec::new();
 
-    for (i, file_path) in file_paths.iter().enumerate() {
+    for (i, item) in items.iter().enumerate() {
+        let file_path = item.file_path;
         let file = File::open(file_path).await?;
         let file_size = file.metadata().await?.len();
         let file_name = file_path
@@ -88,7 +113,7 @@ pub async fn upload_media_group(
                 .template(&format!(
                     "  {{spinner:.green}} [{}/{}] [{{bar:40.cyan/blue}}] {{bytes}}/{{total_bytes}} ({{bytes_per_sec}}, {{eta}})",
                     i + 1,
-                    file_paths.len()
+                    items.len()
                 ))?
                 .progress_chars("█▓░"),
         );
@@ -141,6 +166,13 @@ pub async fn upload_media_group(
         } else {
             media.document(uploaded)
         };
+
+        if let Some(path) = item.thumbnail_path {
+            if is_video_ext(&ext) {
+                let thumb_uploaded = client.upload_file(path).await?;
+                media = media.thumbnail(thumb_uploaded);
+            }
+        }
 
         media_items.push(media);
     }

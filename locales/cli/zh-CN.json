@@ -81,6 +81,8 @@
     "all_accounts": "使用所有账号。",
     "chat": "聊天 ID 或用户名。",
     "caption": "原样发送的 HTML 标题。",
+    "thumb": "视频封面图片路径。",
+    "thumb_map": "显式的视频到封面映射。",
     "group": "以媒体组方式发送文件。",
     "json_events": "为 stdio 客户端输出机器可读的生命周期事件。",
     "http_bind": "使用 host:port 启动 HTTP API，而不是 stdio 模式。"
@@ -92,6 +94,8 @@
     "upload.path": "要上传的文件或目录。",
     "upload.chat": "目标聊天 ID 或用户名。默认发送到 Saved Messages。",
     "upload.account": "要使用的账号用户 ID，可传多个。默认使用当前活跃账号。",
+    "upload.thumb": "视频上传使用的封面图片文件或目录。",
+    "upload.thumb_map": "显式指定 <VIDEO>=<THUMB> 形式的视频封面映射。",
     "upload.to": "目标 peer 表达式。与 --chat、--topic 冲突。",
     "upload.group": "以媒体组或相册发送文件。每组最多 10 个。",
     "download.path": "输出目录。默认使用当前目录。",

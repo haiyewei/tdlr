@@ -82,6 +82,19 @@ pub fn print_no_media_files() {
     );
 }
 
+/// Print unused thumbnail warning.
+pub fn print_unused_thumbnails(count: usize) {
+    println!(
+        "{} {} {}",
+        "⚠".yellow(),
+        count,
+        pick(
+            "个封面文件未匹配到任何视频，已忽略",
+            "thumbnail file(s) were not matched to any video and were ignored"
+        )
+    );
+}
+
 /// Print file removal result
 pub fn print_removed_files(count: usize) {
     println!(

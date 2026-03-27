@@ -58,13 +58,35 @@ pub async fn upload_file(
     topic_id: Option<i32>,
     caption: Option<&str>,
 ) -> Result<Message> {
-    upload_file_with_progress(client, file_path, chat, topic_id, caption, None).await
+    upload_file_with_thumbnail(client, file_path, None, chat, topic_id, caption).await
+}
+
+/// Upload a single file to Telegram with an optional thumbnail/cover.
+pub async fn upload_file_with_thumbnail(
+    client: &Client,
+    file_path: &Path,
+    thumbnail_path: Option<&Path>,
+    chat: &ResolvedChat,
+    topic_id: Option<i32>,
+    caption: Option<&str>,
+) -> Result<Message> {
+    upload_file_with_progress(
+        client,
+        file_path,
+        thumbnail_path,
+        chat,
+        topic_id,
+        caption,
+        None,
+    )
+    .await
 }
 
 /// Upload a single file to Telegram with optional external progress bar
 pub async fn upload_file_with_progress(
     client: &Client,
     file_path: &Path,
+    thumbnail_path: Option<&Path>,
     chat: &ResolvedChat,
     topic_id: Option<i32>,
     caption: Option<&str>,
@@ -120,6 +142,11 @@ pub async fn upload_file_with_progress(
     if is_photo_ext(&ext) {
         msg = msg.photo(uploaded);
     } else if is_video_ext(&ext) {
+        let thumb_uploaded = if let Some(path) = thumbnail_path {
+            Some(client.upload_file(path).await?)
+        } else {
+            None
+        };
         msg = msg.document(uploaded).attribute(Attribute::Video {
             round_message: false,
             supports_streaming: true,
@@ -127,6 +154,9 @@ pub async fn upload_file_with_progress(
             w: 0,
             h: 0,
         });
+        if let Some(thumb) = thumb_uploaded {
+            msg = msg.thumbnail(thumb);
+        }
     } else {
         msg = msg.document(uploaded);
     }

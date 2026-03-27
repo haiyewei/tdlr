@@ -31,6 +31,12 @@ pub struct UploadArgs {
     /// Caption HTML (sent as-is, no template substitution)
     #[arg(long)]
     pub caption: Option<String>,
+    /// Thumbnail/cover image path(s) for video uploads
+    #[arg(long, visible_aliases = ["thumbnail", "cover"], num_args = 1..)]
+    pub thumb: Option<Vec<String>>,
+    /// Explicit video-to-thumbnail mapping in the form <VIDEO>=<THUMB>
+    #[arg(long, visible_alias = "cover-map", num_args = 1..)]
+    pub thumb_map: Option<Vec<String>>,
     /// Destination peer expression (conflicts with --chat and --topic)
     #[arg(long, conflicts_with_all = ["chat", "topic"])]
     pub to: Option<String>,

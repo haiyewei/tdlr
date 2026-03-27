@@ -81,6 +81,8 @@
     "all_accounts": "Use all accounts.",
     "chat": "Chat ID or username.",
     "caption": "Caption HTML sent as-is.",
+    "thumb": "Video thumbnail image path.",
+    "thumb_map": "Explicit video-to-thumbnail mapping.",
     "group": "Send files as a media group.",
     "json_events": "Print machine-readable lifecycle events for stdio clients.",
     "http_bind": "Serve the HTTP API on host:port instead of stdio mode."
@@ -92,6 +94,8 @@
     "upload.path": "Files or directories to upload.",
     "upload.chat": "Destination chat ID or username. Defaults to Saved Messages.",
     "upload.account": "Account user ID(s) to use. Defaults to the active account.",
+    "upload.thumb": "Thumbnail image file(s) or directories used for video uploads.",
+    "upload.thumb_map": "Explicit <VIDEO>=<THUMB> mapping for video thumbnails.",
     "upload.to": "Destination peer expression. Conflicts with --chat and --topic.",
     "upload.group": "Send files as a media group or album. Maximum 10 per group.",
     "download.path": "Output directory. Defaults to the current directory.",

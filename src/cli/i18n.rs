@@ -274,7 +274,7 @@ fn arg_has_possible_values(command: &Command, id: &str) -> bool {
     command
         .get_arguments()
         .find(|arg| arg.get_id().as_str() == id)
-        .map(|arg| !arg.get_possible_values().is_empty())
+        .map(|arg| arg.get_action().takes_values() && !arg.get_possible_values().is_empty())
         .unwrap_or(false)
 }
 

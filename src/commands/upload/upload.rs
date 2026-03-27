@@ -5,6 +5,7 @@ use super::handler::{
     remove_files, upload_media_groups, upload_single_files, UploadContext, UploadStats,
 };
 use super::output;
+use super::thumbnail::resolve_thumbnail_assignments;
 use crate::i18n::pick;
 use crate::telegram::{pool, SessionManager};
 use crate::utils::ExtFilter;
@@ -23,6 +24,8 @@ pub async fn run(
     account: Option<Vec<i64>>,
     all_accounts: bool,
     caption: Option<String>,
+    thumb: Option<Vec<String>>,
+    thumb_map: Option<Vec<String>>,
     to: Option<String>,
     group: bool,
 ) -> Result<()> {
@@ -62,6 +65,12 @@ pub async fn run(
 
     let mut stats = UploadStats::default();
     stats.add_failed(initial_failed);
+    let thumbnails =
+        resolve_thumbnail_assignments(&files, thumb.as_deref(), thumb_map.as_deref())?;
+
+    if thumbnails.unused_count > 0 {
+        output::print_unused_thumbnails(thumbnails.unused_count);
+    }
 
     // Upload to each client
     for client in &clients {
@@ -83,6 +92,7 @@ pub async fn run(
             chat: &chat,
             topic,
             caption: &caption,
+            thumbnails: &thumbnails,
             to: &to,
             concurrent: DEFAULT_CONCURRENT,
         };

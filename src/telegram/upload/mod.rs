@@ -12,6 +12,8 @@ mod mime;
 mod single;
 
 pub use chat::{resolve_chat, ResolvedChat};
-pub use group::{upload_media_group, MAX_MEDIA_GROUP_SIZE};
-pub use mime::is_media_group_supported;
-pub use single::{send_text, upload_file, upload_file_with_progress};
+pub use group::{
+    upload_media_group, upload_media_group_with_thumbnails, UploadMediaItem, MAX_MEDIA_GROUP_SIZE,
+};
+pub use mime::{is_media_group_supported, is_photo_path, is_video_path};
+pub use single::{send_text, upload_file, upload_file_with_progress, upload_file_with_thumbnail};

@@ -21,6 +21,8 @@ tdlr upload --path <PATH>... [OPTIONS]
 | `-a, --account <USER_ID>` | 使用指定账号，可重复传多次 |
 | `--all-accounts` | 使用所有账号依次执行上传 |
 | `--caption <HTML>` | 文件说明，直接按 HTML 发送，不做模板替换 |
+| `--thumb <PATH>...` | 视频上传时使用的封面图片文件或目录 |
+| `--thumb-map <VIDEO=THUMB>...` | 显式指定某个视频对应哪个封面图 |
 | `--to <EXPR>` | 目标路由表达式，和 `--chat` / `--topic` 冲突 |
 | `--group` | 以媒体组发送，最多 10 个，仅支持图片和视频 |
 
@@ -44,6 +46,9 @@ tdlr upload --path <PATH>... [OPTIONS]
 - 指定多个 `--account` 时，会对每个账号分别执行同一轮上传。
 - `--all-accounts` 会加载本地所有账号并依次上传。
 - `--caption` 当前是原样 HTML，不支持模板变量替换。
+- `--thumb` 只对视频上传生效；每个值都可以是图片文件，也可以是会被递归扫描的目录。
+- 封面分配顺序是：显式 `--thumb-map`，其次按文件 stem 唯一匹配，最后按剩余输入顺序兜底。
+- `--thumb-map` 左侧既可以写完整视频路径，也可以写唯一的文件名或 stem。
 - `--group` 只会处理图片和视频；不支持媒体组的文件会被跳过并计入失败统计。
 - `--rm` 会在全部上传流程结束后删除已处理文件。
 
@@ -57,6 +62,26 @@ tdlr upload -p ./cache --rm -c me
 tdlr upload -p ./videos --group -c -1001234567890
 tdlr upload -p ./data -a 123456789 -a 987654321 -c me
 tdlr upload -p ./media --all-accounts -c @backup
+tdlr upload -p ./video.mp4 --thumb ./video-cover.jpg -c me
+tdlr upload -p ./videos --thumb ./covers --group -c @backup_channel
+tdlr upload -p ./videos --thumb-map "./videos/a.mp4=./covers/a.jpg" "./videos/b.mp4=./covers/b.jpg" --group -c me
+```
+
+## HTTP API
+
+`tdlr service --http-bind ...` 下的 HTTP API 也使用同一套上传参数，直接放进 `args` 数组即可：
+
+```json
+{
+  "id": "upload-1",
+  "args": [
+    "upload",
+    "--path", "./videos",
+    "--thumb", "./covers",
+    "--group",
+    "--chat", "me"
+  ]
+}
 ```
 
 ## 路由表达式 `--to`
@@ -105,6 +130,7 @@ tdlr upload -p ./media --to 'if(is_video, "-1001111111111", if(is_image, "-10022
 | `src/commands/upload/upload.rs` | 命令入口 |
 | `src/commands/upload/file.rs` | 文件收集和递归扫描 |
 | `src/commands/upload/handler.rs` | 上传执行和统计 |
+| `src/commands/upload/thumbnail.rs` | 封面文件收集和视频封面分配 |
 | `src/commands/upload/expr.rs` | 路由表达式实现 |
 | `src/telegram/upload/chat.rs` | 目标聊天解析 |
 | `src/telegram/upload/group.rs` | 媒体组上传 |

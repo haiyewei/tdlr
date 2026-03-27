@@ -21,6 +21,8 @@ tdlr upload --path <PATH>... [OPTIONS]
 | `-a, --account <USER_ID>` | Use a specific account. May be repeated |
 | `--all-accounts` | Run the upload once per locally saved account |
 | `--caption <HTML>` | File caption sent as raw HTML without template substitution |
+| `--thumb <PATH>...` | Thumbnail or cover image file(s) or directories for video uploads |
+| `--thumb-map <VIDEO=THUMB>...` | Explicitly bind a video file to a thumbnail image |
 | `--to <EXPR>` | Routing expression for the destination. Conflicts with `--chat` and `--topic` |
 | `--group` | Send as media groups, up to 10 items. Only supports images and videos |
 
@@ -44,6 +46,9 @@ tdlr upload --path <PATH>... [OPTIONS]
 - If multiple `--account` values are provided, the same upload run is executed for each account.
 - `--all-accounts` loads all local accounts and uploads with each one in turn.
 - `--caption` is sent as raw HTML and does not support template variables.
+- `--thumb` only applies to video uploads. Each value may point to an image file or a directory that is scanned recursively for images.
+- Thumbnail assignment order is: explicit `--thumb-map`, then unique file-stem match, then remaining thumbnails in input order.
+- `--thumb-map` accepts either a full upload path or a unique file name / stem on the left side.
 - `--group` only processes images and videos. Unsupported files are skipped and counted as failures.
 - `--rm` deletes processed files after the upload workflow finishes.
 
@@ -57,6 +62,26 @@ tdlr upload -p ./cache --rm -c me
 tdlr upload -p ./videos --group -c -1001234567890
 tdlr upload -p ./data -a 123456789 -a 987654321 -c me
 tdlr upload -p ./media --all-accounts -c @backup
+tdlr upload -p ./video.mp4 --thumb ./video-cover.jpg -c me
+tdlr upload -p ./videos --thumb ./covers --group -c @backup_channel
+tdlr upload -p ./videos --thumb-map "./videos/a.mp4=./covers/a.jpg" "./videos/b.mp4=./covers/b.jpg" --group -c me
+```
+
+## HTTP API
+
+`tdlr service --http-bind ...` uses the same upload arguments. Pass them in the `args` array:
+
+```json
+{
+  "id": "upload-1",
+  "args": [
+    "upload",
+    "--path", "./videos",
+    "--thumb", "./covers",
+    "--group",
+    "--chat", "me"
+  ]
+}
 ```
 
 ## Routing expression: `--to`
@@ -105,6 +130,7 @@ tdlr upload -p ./media --to 'if(is_video, "-1001111111111", if(is_image, "-10022
 | `src/commands/upload/upload.rs` | Command entry point |
 | `src/commands/upload/file.rs` | File collection and recursive scanning |
 | `src/commands/upload/handler.rs` | Upload execution and statistics |
+| `src/commands/upload/thumbnail.rs` | Thumbnail collection and video-to-thumbnail assignment |
 | `src/commands/upload/expr.rs` | Routing expression implementation |
 | `src/telegram/upload/chat.rs` | Destination chat resolution |
 | `src/telegram/upload/group.rs` | Media group upload |

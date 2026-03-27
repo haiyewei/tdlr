@@ -33,6 +33,8 @@ pub(crate) async fn execute_non_service(command: Commands) -> Result<()> {
                 args.account,
                 args.all_accounts,
                 args.caption,
+                args.thumb,
+                args.thumb_map,
                 args.to,
                 args.group,
             )

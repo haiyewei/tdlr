@@ -187,7 +187,7 @@ build_local_release_binary() {
     return 1
   fi
 
-  printf '[tdlr] no local binary found, building release binary with cargo --bin %s\n' "${BIN_NAME}"
+  printf '[tdlr] no local binary found, building release binary with cargo --bin %s\n' "${BIN_NAME}" >&2
   (
     cd "${REPO_ROOT}"
     cargo build --release --bin "${BIN_NAME}"
@@ -340,7 +340,7 @@ download_remote_binary() {
   url="$(remote_download_url)"
   tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/tdlr-install.XXXXXX")"
 
-  printf '[tdlr] downloading %s\n' "${url}"
+  printf '[tdlr] downloading %s\n' "${url}" >&2
 
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "${url}" -o "${tmp_dir}/package.tar.gz"

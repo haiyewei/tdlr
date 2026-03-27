@@ -3,10 +3,11 @@
 use super::expr::{eval_routing, FileContext};
 use super::file::ValidatedFile;
 use super::output;
+use super::thumbnail::ThumbnailAssignments;
 use crate::i18n::{is_zh, pick};
 use crate::telegram::upload::{
-    is_media_group_supported, resolve_chat, upload_file, upload_media_group, ResolvedChat,
-    MAX_MEDIA_GROUP_SIZE,
+    is_media_group_supported, resolve_chat, upload_file_with_thumbnail,
+    upload_media_group_with_thumbnails, ResolvedChat, UploadMediaItem, MAX_MEDIA_GROUP_SIZE,
 };
 use crate::telegram::TelegramClient;
 use anyhow::Result;
@@ -37,6 +38,7 @@ pub struct UploadContext<'a> {
     pub chat: &'a Option<String>,
     pub topic: Option<i32>,
     pub caption: &'a Option<String>,
+    pub thumbnails: &'a ThumbnailAssignments,
     pub to: &'a Option<String>,
     pub concurrent: usize,
 }
@@ -110,8 +112,16 @@ pub async fn upload_single_files(
                     return;
                 };
 
-                match upload_file(ctx.client.inner(), &file.path, chat, ctx.topic, caption_ref)
-                    .await
+                let thumbnail = ctx.thumbnails.get(&file.path);
+                match upload_file_with_thumbnail(
+                    ctx.client.inner(),
+                    &file.path,
+                    thumbnail,
+                    chat,
+                    ctx.topic,
+                    caption_ref,
+                )
+                .await
                 {
                     Ok(msg) => {
                         output::print_success(msg.id());
@@ -189,13 +199,19 @@ pub async fn upload_media_groups(
     // Split into batches of MAX_MEDIA_GROUP_SIZE
     // Media groups are sent sequentially to maintain order
     for (batch_idx, batch) in media_files.chunks(MAX_MEDIA_GROUP_SIZE).enumerate() {
-        let batch_paths: Vec<&std::path::Path> = batch.iter().map(|f| f.path.as_path()).collect();
+        let batch_items: Vec<_> = batch
+            .iter()
+            .map(|file| UploadMediaItem {
+                file_path: file.path.as_path(),
+                thumbnail_path: ctx.thumbnails.get(&file.path),
+            })
+            .collect();
 
         output::print_group_progress(batch_idx, total_batches, batch.len());
 
-        match upload_media_group(
+        match upload_media_group_with_thumbnails(
             ctx.client.inner(),
-            &batch_paths,
+            &batch_items,
             &chat,
             ctx.topic,
             ctx.caption.as_deref(),
