@@ -133,6 +133,107 @@ function Get-RemoteBinary {
     }
 }
 
+function Test-FileInUseError {
+    param(
+        [System.Management.Automation.ErrorRecord]$ErrorRecord
+    )
+
+    $exception = $ErrorRecord.Exception
+    while ($exception) {
+        if ($exception -is [System.IO.IOException] -or $exception -is [System.UnauthorizedAccessException]) {
+            if ($exception.Message -match 'being used by another process|another process') {
+                return $true
+            }
+        }
+
+        $exception = $exception.InnerException
+    }
+
+    return $false
+}
+
+function Get-LockingProcessIds {
+    param(
+        [string]$PathValue
+    )
+
+    if (-not (Test-Path $PathValue -PathType Leaf)) {
+        return @()
+    }
+
+    $normalizedTarget = [System.IO.Path]::GetFullPath($PathValue)
+    $processName = [System.IO.Path]::GetFileNameWithoutExtension($BinaryName)
+    $matches = @()
+
+    foreach ($process in (Get-Process -Name $processName -ErrorAction SilentlyContinue)) {
+        $processPath = $null
+
+        try {
+            $processPath = $process.Path
+        }
+        catch {
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace($processPath)) {
+            continue
+        }
+
+        $normalizedProcessPath = $null
+        try {
+            $normalizedProcessPath = [System.IO.Path]::GetFullPath($processPath)
+        }
+        catch {
+            $normalizedProcessPath = $processPath
+        }
+
+        if ($normalizedProcessPath -ieq $normalizedTarget) {
+            $matches += $process.Id
+        }
+    }
+
+    return $matches | Select-Object -Unique
+}
+
+function Install-BinaryWithRetry {
+    param(
+        [string]$SourcePath,
+        [string]$DestinationPath
+    )
+
+    $maxAttempts = 12
+    $delayMs = 500
+    $lastError = $null
+
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+            return
+        }
+        catch {
+            $lastError = $_
+
+            if (-not (Test-FileInUseError -ErrorRecord $_)) {
+                throw
+            }
+
+            if ($attempt -lt $maxAttempts) {
+                Start-Sleep -Milliseconds $delayMs
+                continue
+            }
+        }
+    }
+
+    $lockingProcessIds = Get-LockingProcessIds -PathValue $DestinationPath
+    if ($lockingProcessIds.Count -gt 0) {
+        throw "[tdlr] cannot update $DestinationPath because it is in use by running tdlr process(es): $($lockingProcessIds -join ', '). Close them and rerun the installer."
+    }
+
+    if ($lastError) {
+        throw "[tdlr] cannot update $DestinationPath because it is in use by another process. Close programs using this file and rerun the installer."
+    }
+}
+
 function Test-PathEntry {
     param(
         [string]$PathValue,
@@ -251,7 +352,7 @@ try {
     $InstallPath = Join-Path $InstallDir $BinaryName
 
     if ([System.IO.Path]::GetFullPath($SourceBinary) -ne [System.IO.Path]::GetFullPath($InstallPath)) {
-        Copy-Item -LiteralPath $SourceBinary -Destination $InstallPath -Force
+        Install-BinaryWithRetry -SourcePath $SourceBinary -DestinationPath $InstallPath
     }
 
     Write-Host "[tdlr] installed to $InstallPath"
