@@ -36,13 +36,49 @@
 
 ## Quick Start
 
-### Install with scripts
+### 1. Install
 
-Use the user-level installers in [`scripts/install.sh`](./scripts/install.sh) or [`scripts/install.ps1`](./scripts/install.ps1), or follow the detailed instructions in [docs/en/install.md](./docs/en/install.md).
+Linux / macOS:
 
-### Build from source
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash
+```
 
-If you build from source, export Telegram API credentials before compiling:
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
+```
+
+The installer writes `tdlr` into the current shell user's directory and updates that user's `PATH`. If the install shell runs as `root`, it installs into `root`'s user directory.
+
+Full install, uninstall, proxy, and source-build instructions: [docs/en/install.md](./docs/en/install.md)
+
+### 2. Verify the CLI
+
+```bash
+tdlr version
+```
+
+### 3. First login
+
+```bash
+tdlr auth login add
+tdlr auth login list
+```
+
+### 4. Common examples
+
+```bash
+tdlr upload -p ./media -c me
+tdlr download -u "https://t.me/telegram/193" -p ./downloads
+tdlr forward -f https://t.me/channel/123 -t @backup
+tdlr service --http-bind 127.0.0.1:8787
+```
+
+## Build From Source
+
+Building from source is mainly for development, local patching, or custom builds.
 
 ```bash
 export TG_API_ID=123456
@@ -50,28 +86,12 @@ export TG_API_HASH=your_api_hash
 cargo build --release
 ```
 
-On Windows PowerShell:
+Windows PowerShell:
 
 ```powershell
 $env:TG_API_ID = "123456"
 $env:TG_API_HASH = "your_api_hash"
 cargo build --release
-```
-
-### First login
-
-```bash
-tdlr auth login add
-tdlr auth login list
-```
-
-### Common examples
-
-```bash
-tdlr upload -p ./media -c me
-tdlr download -u "https://t.me/telegram/193" -p ./downloads
-tdlr forward -f https://t.me/channel/123 -t @backup
-tdlr service --http-bind 127.0.0.1:8787
 ```
 
 ## Service Mode

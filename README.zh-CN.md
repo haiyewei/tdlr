@@ -36,13 +36,49 @@
 
 ## 快速开始
 
-### 使用脚本安装
+### 1. 安装
 
-使用用户级安装脚本 [`scripts/install.sh`](./scripts/install.sh) 或 [`scripts/install.ps1`](./scripts/install.ps1)，也可以直接查看 [docs/zh-CN/install.md](./docs/zh-CN/install.md)。
+Linux / macOS：
 
-### 从源码构建
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash
+```
 
-如果从源码编译，需要先设置 Telegram API 凭据：
+Windows PowerShell：
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
+```
+
+安装脚本会把 `tdlr` 安装到当前执行 shell 对应用户的目录里，并更新该用户的 `PATH`。如果安装 shell 实际是以 `root` 身份运行，就会安装到 `root` 的用户目录。
+
+完整的安装、卸载、代理和源码构建说明见 [docs/zh-CN/install.md](./docs/zh-CN/install.md)。
+
+### 2. 验证 CLI
+
+```bash
+tdlr version
+```
+
+### 3. 首次登录
+
+```bash
+tdlr auth login add
+tdlr auth login list
+```
+
+### 4. 常用示例
+
+```bash
+tdlr upload -p ./media -c me
+tdlr download -u "https://t.me/telegram/193" -p ./downloads
+tdlr forward -f https://t.me/channel/123 -t @backup
+tdlr service --http-bind 127.0.0.1:8787
+```
+
+## 从源码构建
+
+源码构建主要面向开发、调试或自定义构建场景。
 
 ```bash
 export TG_API_ID=123456
@@ -50,28 +86,12 @@ export TG_API_HASH=your_api_hash
 cargo build --release
 ```
 
-Windows PowerShell:
+Windows PowerShell：
 
 ```powershell
 $env:TG_API_ID = "123456"
 $env:TG_API_HASH = "your_api_hash"
 cargo build --release
-```
-
-### 首次登录
-
-```bash
-tdlr auth login add
-tdlr auth login list
-```
-
-### 常用示例
-
-```bash
-tdlr upload -p ./media -c me
-tdlr download -u "https://t.me/telegram/193" -p ./downloads
-tdlr forward -f https://t.me/channel/123 -t @backup
-tdlr service --http-bind 127.0.0.1:8787
 ```
 
 ## 服务模式
