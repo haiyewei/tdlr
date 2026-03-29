@@ -4,6 +4,7 @@ mod auth;
 mod download;
 mod forward;
 mod service;
+mod service_api;
 mod upload;
 mod version;
 

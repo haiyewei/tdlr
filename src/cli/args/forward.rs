@@ -1,8 +1,10 @@
 //! Forward command arguments
 
 use clap::{Args, ValueEnum};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Default, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ForwardMode {
     /// Use Telegram native forward API
     Direct,

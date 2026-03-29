@@ -1,9 +1,9 @@
 # `service` 命令
 
-`service` 用于启动长期驻留服务，目前支持两种模式：
+`service` 用于启动长期驻留服务，支持：
 
-- `stdio` 模式
-- HTTP API 模式
+- 面向本地自动化的 `stdio` 模式
+- 提供结构化 Web 端点的 HTTP 模式
 
 ## 用法
 
@@ -62,12 +62,6 @@ version
 @@TDLR_SERVICE@@ {"event":"ready","protocol":"stdio-jsonl-v1"}
 ```
 
-事件前缀：
-
-```text
-@@TDLR_SERVICE@@
-```
-
 事件类型：
 
 | 事件 | 说明 |
@@ -81,7 +75,7 @@ version
 - 普通命令输出仍然会写到 `stdout`。
 - 机器消费方应只解析带事件前缀的行。
 - 发送 `exit` 或 `quit` 会结束服务。
-- `--json-events` 当前默认启用。
+- `--json-events` 默认启用。
 
 ## HTTP 模式
 
@@ -97,120 +91,194 @@ tdlr service --http-bind 127.0.0.1:8787
 HTTP API listening on http://127.0.0.1:8787
 ```
 
-### 接口
+### 协议说明
+
+- 当前协议标识：`http-json-v2`
+- 目前只支持 `HTTP/1.x`
+- 请求体最大 1 MB
+- 每个请求完成后会主动关闭连接
+
+### 接口总览
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/health` | 健康检查 |
 | `GET` | `/v1/health` | 健康检查别名 |
-| `POST` | `/execute` | 执行命令 |
-| `POST` | `/v1/execute` | 执行命令别名 |
+| `GET` | `/v1/version` | 版本、编译器和目标平台信息 |
+| `GET` | `/v1/accounts` | 列出本地保存的账号 |
+| `GET` | `/v1/accounts/status` | 检查每个账号的授权状态 |
+| `POST` | `/v1/accounts/active` | 切换当前激活账号 |
+| `POST` | `/v1/accounts/logout` | 退出一个账号或全部账号 |
+| `DELETE` | `/v1/accounts/{user_id}` | 删除一个本地保存的账号 |
+| `POST` | `/v1/auth/phone/start` | 开始手机号登录流程 |
+| `POST` | `/v1/auth/phone/submit-code` | 提交短信/应用验证码 |
+| `POST` | `/v1/auth/phone/submit-password` | 提交两步验证密码 |
+| `POST` | `/v1/auth/qr/start` | 开始二维码登录流程 |
+| `GET` | `/v1/auth/flows/{flow_id}` | 查询登录流程状态 |
+| `DELETE` | `/v1/auth/flows/{flow_id}` | 取消登录流程 |
+| `POST` | `/v1/uploads` | 用 JSON 请求体执行上传 |
+| `POST` | `/v1/downloads` | 用 JSON 请求体执行下载 |
+| `POST` | `/v1/forwards` | 用 JSON 请求体执行转发 |
 
 ### `GET /health`
 
 返回示例：
 
 ```json
-{"ok":true,"service":"tdlr","protocol":"http-json-v1"}
+{"ok":true,"service":"tdlr","protocol":"http-json-v2"}
 ```
 
-### `POST /execute`
+### `GET /v1/accounts`
 
-请求体支持：
-
-- 纯文本命令行
-- JSON 参数数组
-- JSON 请求对象
-
-请求示例：
-
-```json
-{"id":"req-1","args":["version"]}
-```
-
-```json
-{"id":"req-2","command":"download --url https://t.me/telegram/193 --path ./downloads"}
-```
-
-纯文本示例：
-
-```text
-version
-```
-
-响应示例：
+返回示例：
 
 ```json
 {
   "ok": true,
-  "id": "req-1",
-  "exit_code": 0,
-  "stdout": "Version: ...\n",
-  "stderr": ""
+  "accounts": [
+    {
+      "user_id": 123456789,
+      "display_name": "Alice",
+      "username": "alice",
+      "active": true
+    }
+  ]
 }
 ```
 
-失败响应示例：
+### 手机号登录流程
+
+开始流程：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/start \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+8613800138000"}'
+```
+
+成功返回：
 
 ```json
 {
-  "ok": false,
-  "id": "req-2",
-  "exit_code": 1,
-  "stdout": "",
-  "stderr": "Error: ...\n"
+  "ok": true,
+  "flow_id": "flow-1710000000-1",
+  "kind": "phone",
+  "status": "waiting_for_code",
+  "phone": "+8613800138000"
 }
 ```
 
-### HTTP 行为说明
+提交验证码：
 
-- 当前只支持 `HTTP/1.x`。
-- 请求体最大 1 MB。
-- 每个连接处理完成后会主动关闭，不保持长连接。
-- HTTP 模式内部通过当前二进制的子进程执行命令，并收集 `stdout` / `stderr`。
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/submit-code \
+  -H "Content-Type: application/json" \
+  -d '{"flow_id":"flow-1710000000-1","code":"12345"}'
+```
+
+如果账号启用了两步验证，返回状态会变成 `waiting_for_password`，此时继续调用：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/submit-password \
+  -H "Content-Type: application/json" \
+  -d '{"flow_id":"flow-1710000000-1","password":"your-password"}'
+```
+
+### 二维码登录流程
+
+开始流程：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/qr/start \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+返回示例：
+
+```json
+{
+  "ok": true,
+  "flow_id": "flow-1710000000-2",
+  "kind": "qr",
+  "status": "waiting_for_scan",
+  "login_url": "tg://login?token=...",
+  "expires_at": 1710000032
+}
+```
+
+轮询状态：
+
+```bash
+curl http://127.0.0.1:8787/v1/auth/flows/flow-1710000000-2
+```
+
+扫码成功后，返回会变成：
+
+```json
+{
+  "ok": true,
+  "flow_id": "flow-1710000000-2",
+  "kind": "qr",
+  "status": "completed",
+  "account": {
+    "user_id": 123456789,
+    "display_name": "Alice",
+    "username": "alice",
+    "active": true
+  }
+}
+```
+
+### 上传 / 下载 / 转发端点
+
+这些端点不再使用命令数组，而是使用结构化 JSON。
+
+上传示例：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/uploads \
+  -H "Content-Type: application/json" \
+  -d '{"path":["./videos"],"chat":"me","group":true,"thumb":["./covers"]}'
+```
+
+下载示例：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/downloads \
+  -H "Content-Type: application/json" \
+  -d '{"url":["https://t.me/telegram/193"],"path":"./downloads"}'
+```
+
+转发示例：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/forwards \
+  -H "Content-Type: application/json" \
+  -d '{"from":["https://t.me/channel/123"],"to":"me","mode":"smart"}'
+```
+
+这些操作型端点当前返回：
+
+- `ok`
+- `exit_code`
+- `stdout`
+- `stderr`
+
+请求字段语义与对应 CLI 命令参数保持一致。
 
 ## 限制
 
-以下限制同时适用于两种服务模式：
-
-- 不支持嵌套执行 `service`
-- 不支持 `auth login add`
-
-原因：
-
-- `service` 递归调用没有意义
-- `auth login add` 需要独占标准输入进行手机号、验证码或二维码交互
-
-额外限制：
-
-- HTTP 模式不支持 `exit` 或 `quit`
-
-## 示例
-
-### `stdio` 模式
-
-```text
-version
-{"id":"req-1","args":["download","--url","https://t.me/telegram/193"]}
-exit
-```
-
-### HTTP 模式
-
-```bash
-curl http://127.0.0.1:8787/health
-```
-
-```bash
-curl -X POST http://127.0.0.1:8787/execute \
-  -H "Content-Type: application/json" \
-  -d '{"id":"req-1","args":["version"]}'
-```
+- `stdio` 模式仍然不支持嵌套执行 `service`。
+- `stdio` 模式仍然不接受 `auth login add`，因为它需要独占 `stdin`。
+- HTTP 登录流程状态保存在服务进程内存里，长时间不活动会自动过期。
+- 二维码登录是否需要额外验证仍取决于 Telegram 服务端行为；遇到额外校验时，可能需要改走手机号登录。
 
 ## 参考
 
 | 文件 | 说明 |
 |------|------|
 | `src/cli/args/service.rs` | 参数定义 |
-| `src/commands/service.rs` | `stdio` 和 HTTP 模式实现 |
+| `src/commands/service.rs` | `stdio` 模式和 HTTP 服务入口 |
+| `src/commands/service_api.rs` | HTTP 路由、账号端点和登录流程 |
 | `src/commands/mod.rs` | 顶层命令分发 |

@@ -69,20 +69,18 @@ tdlr upload -p ./videos --thumb-map "./videos/a.mp4=./covers/a.jpg" "./videos/b.
 
 ## HTTP API
 
-`tdlr service --http-bind ...` 下的 HTTP API 也使用同一套上传参数，直接放进 `args` 数组即可：
+`tdlr service --http-bind ...` 会暴露专用上传端点，请求体直接使用与 CLI 对应的字段语义：
 
 ```json
 {
-  "id": "upload-1",
-  "args": [
-    "upload",
-    "--path", "./videos",
-    "--thumb", "./covers",
-    "--group",
-    "--chat", "me"
-  ]
+  "path": ["./videos"],
+  "thumb": ["./covers"],
+  "group": true,
+  "chat": "me"
 }
 ```
+
+把这个 JSON 发送到 `POST /v1/uploads` 即可。
 
 ## 路由表达式 `--to`
 

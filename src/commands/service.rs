@@ -1,5 +1,6 @@
 //! Long-lived service mode over stdin/stdout or HTTP
 
+use super::service_api::{route_http_request as route_service_http_request, HttpApiState};
 use crate::cli::{self, AuthCommands, Commands, LoginCommands, ServiceArgs};
 use crate::i18n::{pick, set_current_language};
 use anyhow::{anyhow, bail, Result};
@@ -7,10 +8,8 @@ use clap::error::ErrorKind;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::io::Write;
-use std::process::Stdio;
 use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::process::Command;
 
 const EVENT_PREFIX: &str = "@@TDLR_SERVICE@@";
 const MAX_HTTP_BODY_SIZE: usize = 1024 * 1024;
@@ -42,21 +41,6 @@ struct ServiceEvent<'a> {
     error: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     protocol: Option<&'a str>,
-}
-
-#[derive(Debug, Serialize)]
-struct HttpCommandResponse<'a> {
-    ok: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<&'a Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    exit_code: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    stdout: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    stderr: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<&'a str>,
 }
 
 pub async fn run(args: ServiceArgs) -> Result<()> {
@@ -144,6 +128,7 @@ async fn run_stdio(json_events: bool) -> Result<()> {
 
 async fn run_http(bind: &str) -> Result<()> {
     let listener = TcpListener::bind(bind).await?;
+    let state = HttpApiState::new();
     println!(
         "{} http://{}",
         pick("HTTP API 正在监听", "HTTP API listening on"),
@@ -152,8 +137,9 @@ async fn run_http(bind: &str) -> Result<()> {
 
     loop {
         let (stream, remote) = listener.accept().await?;
+        let state = std::sync::Arc::clone(&state);
         tokio::spawn(async move {
-            if let Err(err) = handle_http_connection(stream).await {
+            if let Err(err) = handle_http_connection(stream, state).await {
                 eprintln!(
                     "{} {}: {}",
                     pick("HTTP 连接失败", "HTTP connection failed"),
@@ -188,7 +174,10 @@ async fn execute_request(args: &[String]) -> Result<()> {
     crate::commands::execute_non_service(parsed.cli.command).await
 }
 
-async fn handle_http_connection(stream: TcpStream) -> Result<()> {
+async fn handle_http_connection(
+    stream: TcpStream,
+    state: std::sync::Arc<HttpApiState>,
+) -> Result<()> {
     let (read_half, mut write_half) = stream.into_split();
     let mut reader = BufReader::new(read_half);
 
@@ -249,133 +238,12 @@ async fn handle_http_connection(stream: TcpStream) -> Result<()> {
         if content_length > 0 {
             reader.read_exact(&mut body).await?;
         }
-        route_http_request(&method, &path, &body).await
+        let (status, payload) = route_service_http_request(state, &method, &path, &body).await;
+        http_json_response(status, payload)
     };
 
     write_half.write_all(response.as_bytes()).await?;
     write_half.shutdown().await?;
-    Ok(())
-}
-
-async fn route_http_request(method: &str, path: &str, body: &[u8]) -> String {
-    match (method, path) {
-        ("GET", "/health") | ("GET", "/v1/health") => http_json_response(
-            200,
-            json!({
-                "ok": true,
-                "service": "tdlr",
-                "protocol": "http-json-v1"
-            }),
-        ),
-        ("POST", "/execute") | ("POST", "/v1/execute") => handle_http_execute(body).await,
-        _ => http_json_response(
-            404,
-            json!({ "ok": false, "error": pick("未找到", "not found") }),
-        ),
-    }
-}
-
-async fn handle_http_execute(body: &[u8]) -> String {
-    let body_text = match std::str::from_utf8(body) {
-        Ok(text) => text.trim(),
-        Err(_) => {
-            return http_json_response(
-                400,
-                json!({ "ok": false, "error": pick("请求体必须是有效的 UTF-8", "request body must be valid UTF-8") }),
-            );
-        }
-    };
-
-    let request = match parse_request(body_text) {
-        Ok(request) => request,
-        Err(err) => {
-            return http_json_response(
-                400,
-                json!({
-                    "ok": false,
-                    "error": err.to_string()
-                }),
-            );
-        }
-    };
-
-    if let Err(err) = validate_http_request(&request.args) {
-        let message = err.to_string();
-        let payload = HttpCommandResponse {
-            ok: false,
-            id: request.id.as_ref(),
-            exit_code: None,
-            stdout: None,
-            stderr: None,
-            error: Some(&message),
-        };
-        return http_json_response(400, json!(payload));
-    }
-
-    match execute_request_via_child(&request).await {
-        Ok((status, stdout, stderr)) => {
-            let payload = HttpCommandResponse {
-                ok: status.success(),
-                id: request.id.as_ref(),
-                exit_code: Some(status.code().unwrap_or(-1)),
-                stdout: Some(&stdout),
-                stderr: Some(&stderr),
-                error: None,
-            };
-            let code = if status.success() { 200 } else { 400 };
-            http_json_response(code, json!(payload))
-        }
-        Err(err) => {
-            let message = err.to_string();
-            let payload = HttpCommandResponse {
-                ok: false,
-                id: request.id.as_ref(),
-                exit_code: None,
-                stdout: None,
-                stderr: None,
-                error: Some(&message),
-            };
-            http_json_response(500, json!(payload))
-        }
-    }
-}
-
-async fn execute_request_via_child(
-    request: &ParsedRequest,
-) -> Result<(std::process::ExitStatus, String, String)> {
-    let current_exe = std::env::current_exe()?;
-    let mut command = Command::new(current_exe);
-    let current_lang = crate::i18n::current_language();
-    command
-        .args(child_args(&request.args))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .env("TDLR_LANG", current_lang.selector())
-        .env("NO_COLOR", "1")
-        .env("CLICOLOR", "0")
-        .env("CLICOLOR_FORCE", "0");
-
-    let output = command.output().await?;
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-    Ok((output.status, stdout, stderr))
-}
-
-fn validate_http_request(args: &[String]) -> Result<()> {
-    ensure_service_safe_args(args)?;
-
-    if is_exit_command(args) {
-        bail!(
-            "{}",
-            pick(
-                "HTTP API 不支持 exit 或 quit 命令",
-                "HTTP API does not support exit or quit commands"
-            )
-        );
-    }
-
     Ok(())
 }
 
@@ -399,29 +267,6 @@ fn ensure_service_safe(command: &Commands) -> Result<()> {
     }
 }
 
-fn ensure_service_safe_args(args: &[String]) -> Result<()> {
-    match child_args(args) {
-        [service, ..] if service == "service" => {
-            bail!(
-                "{}",
-                pick(
-                    "服务模式不支持嵌套的 service 命令",
-                    "service mode does not support nested service commands"
-                )
-            )
-        }
-        [auth, login, add, ..] if auth == "auth" && login == "login" && add == "add" => bail!(
-            "{}",
-            pick(
-                "服务模式不支持 'auth login add'，因为登录交互需要独占 stdin",
-                "service mode does not support 'auth login add' because login prompts require exclusive stdin"
-            )
-        ),
-        [] => bail!("{}", pick("空命令", "empty command")),
-        _ => Ok(()),
-    }
-}
-
 fn normalize_argv(args: &[String]) -> Vec<String> {
     if matches!(args.first(), Some(first) if first == "tdlr") {
         args.to_vec()
@@ -430,14 +275,6 @@ fn normalize_argv(args: &[String]) -> Vec<String> {
         argv.push("tdlr".to_string());
         argv.extend(args.iter().cloned());
         argv
-    }
-}
-
-fn child_args(args: &[String]) -> &[String] {
-    if matches!(args.first(), Some(first) if first == "tdlr") {
-        &args[1..]
-    } else {
-        args
     }
 }
 
@@ -523,6 +360,7 @@ fn http_json_response(status: u16, body: Value) -> String {
         404 => "Not Found",
         413 => "Payload Too Large",
         500 => "Internal Server Error",
+        504 => "Gateway Timeout",
         505 => "HTTP Version Not Supported",
         _ => "OK",
     };

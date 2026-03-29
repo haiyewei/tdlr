@@ -69,20 +69,18 @@ tdlr upload -p ./videos --thumb-map "./videos/a.mp4=./covers/a.jpg" "./videos/b.
 
 ## HTTP API
 
-`tdlr service --http-bind ...` uses the same upload arguments. Pass them in the `args` array:
+`tdlr service --http-bind ...` exposes a dedicated upload endpoint. The request body uses the same semantics as the CLI flags:
 
 ```json
 {
-  "id": "upload-1",
-  "args": [
-    "upload",
-    "--path", "./videos",
-    "--thumb", "./covers",
-    "--group",
-    "--chat", "me"
-  ]
+  "path": ["./videos"],
+  "thumb": ["./covers"],
+  "group": true,
+  "chat": "me"
 }
 ```
+
+Send it to `POST /v1/uploads`.
 
 ## Routing expression: `--to`
 

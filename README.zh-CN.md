@@ -99,6 +99,6 @@ cargo build --release
 `tdlr service` 支持：
 
 - 基于 `stdio` 的本地自动化命令执行。
-- 通过 `POST /execute` 和 `/health` 暴露的 HTTP API。
+- 通过结构化 HTTP 端点管理账号、登录流程、上传、下载、转发和健康检查。
 
 请求格式、返回格式和限制说明见 [docs/zh-CN/service.md](./docs/zh-CN/service.md)。

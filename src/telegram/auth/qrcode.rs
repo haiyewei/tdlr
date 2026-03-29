@@ -12,6 +12,7 @@
 use crate::i18n::{is_zh, pick};
 use crate::telegram::TelegramClient;
 use anyhow::{bail, Context, Result};
+use grammers_client::peer::User;
 use grammers_tl_types as tl;
 use qrcode::render::unicode;
 use qrcode::QrCode;
@@ -20,6 +21,12 @@ use std::time::Duration;
 
 /// Max retries for import token before generating new QR
 const MAX_IMPORT_RETRIES: u32 = 5;
+
+pub(crate) enum QrLoginTokenExport {
+    Ready { url: String, expires_at: i32 },
+    Authorized(User),
+    PendingMigration { dc_id: i32, token: Vec<u8> },
+}
 
 fn format_qr_login_error(err: &str) -> String {
     if is_zh() {
@@ -51,11 +58,11 @@ fn render_qr(url: &str) {
 }
 
 /// Try to complete login on target DC with retries
-async fn try_import_login(
+pub(crate) async fn try_import_login(
     tg: &TelegramClient,
     dc_id: i32,
     token: Vec<u8>,
-) -> Result<Option<grammers_client::peer::User>> {
+) -> Result<Option<User>> {
     let client = tg.inner();
     let mut current_dc = dc_id;
     let mut current_token = token;
@@ -134,6 +141,40 @@ async fn try_import_login(
     }
 
     Ok(None)
+}
+
+pub(crate) async fn export_qr_login_token(
+    tg: &TelegramClient,
+    api_id: i32,
+    api_hash: &str,
+) -> Result<QrLoginTokenExport> {
+    let export_request = tl::functions::auth::ExportLoginToken {
+        api_id,
+        api_hash: api_hash.to_string(),
+        except_ids: vec![],
+    };
+
+    let result = tg
+        .inner()
+        .invoke(&export_request)
+        .await
+        .context(pick("导出登录令牌失败", "Failed to export login token"))?;
+
+    match result {
+        tl::enums::auth::LoginToken::Token(token) => Ok(QrLoginTokenExport::Ready {
+            url: format!("tg://login?token={}", base64_url::encode(&token.token)),
+            expires_at: token.expires,
+        }),
+        tl::enums::auth::LoginToken::Success(success) => Ok(QrLoginTokenExport::Authorized(
+            handle_success(tg, success, None).await?,
+        )),
+        tl::enums::auth::LoginToken::MigrateTo(migrate) => {
+            Ok(QrLoginTokenExport::PendingMigration {
+                dc_id: migrate.dc_id,
+                token: migrate.token,
+            })
+        }
+    }
 }
 
 /// Login using QR code scan

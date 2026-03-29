@@ -1,9 +1,9 @@
 # `service` Command
 
-`service` starts a long-running process. It currently supports two modes:
+`service` starts a long-running process. It supports:
 
-- `stdio` mode
-- HTTP API mode
+- `stdio` mode for local automation
+- HTTP mode with structured Web endpoints
 
 ## Usage
 
@@ -62,12 +62,6 @@ The service emits event lines with a fixed prefix:
 @@TDLR_SERVICE@@ {"event":"ready","protocol":"stdio-jsonl-v1"}
 ```
 
-Event prefix:
-
-```text
-@@TDLR_SERVICE@@
-```
-
 Event types:
 
 | Event | Description |
@@ -81,7 +75,7 @@ Event types:
 - Normal command output still goes to `stdout`.
 - Machine consumers should only parse lines with the event prefix.
 - Sending `exit` or `quit` stops the service.
-- `--json-events` is currently enabled by default.
+- `--json-events` is enabled by default.
 
 ## HTTP mode
 
@@ -97,120 +91,194 @@ After startup, the console prints:
 HTTP API listening on http://127.0.0.1:8787
 ```
 
-### Endpoints
+### Protocol
+
+- Current protocol string: `http-json-v2`
+- Only `HTTP/1.x` is supported
+- Request bodies are limited to 1 MB
+- Connections are closed after each request
+
+### Endpoint summary
 
 | Method | Path | Description |
 |------|------|------|
 | `GET` | `/health` | Health check |
 | `GET` | `/v1/health` | Health check alias |
-| `POST` | `/execute` | Execute a command |
-| `POST` | `/v1/execute` | Execute a command alias |
+| `GET` | `/v1/version` | Build and target information |
+| `GET` | `/v1/accounts` | List saved accounts |
+| `GET` | `/v1/accounts/status` | Check authorization status for each account |
+| `POST` | `/v1/accounts/active` | Switch active account |
+| `POST` | `/v1/accounts/logout` | Logout one account or all accounts |
+| `DELETE` | `/v1/accounts/{user_id}` | Remove one saved account |
+| `POST` | `/v1/auth/phone/start` | Start phone login flow |
+| `POST` | `/v1/auth/phone/submit-code` | Submit login code |
+| `POST` | `/v1/auth/phone/submit-password` | Submit 2FA password |
+| `POST` | `/v1/auth/qr/start` | Start QR login flow |
+| `GET` | `/v1/auth/flows/{flow_id}` | Poll login flow state |
+| `DELETE` | `/v1/auth/flows/{flow_id}` | Cancel login flow |
+| `POST` | `/v1/uploads` | Run upload with JSON request body |
+| `POST` | `/v1/downloads` | Run download with JSON request body |
+| `POST` | `/v1/forwards` | Run forward with JSON request body |
 
 ### `GET /health`
 
 Example response:
 
 ```json
-{"ok":true,"service":"tdlr","protocol":"http-json-v1"}
+{"ok":true,"service":"tdlr","protocol":"http-json-v2"}
 ```
 
-### `POST /execute`
+### `GET /v1/accounts`
 
-The request body supports:
-
-- Plain-text command lines
-- JSON argument arrays
-- JSON request objects
-
-Request examples:
-
-```json
-{"id":"req-1","args":["version"]}
-```
-
-```json
-{"id":"req-2","command":"download --url https://t.me/telegram/193 --path ./downloads"}
-```
-
-Plain-text example:
-
-```text
-version
-```
-
-Successful response example:
+Example response:
 
 ```json
 {
   "ok": true,
-  "id": "req-1",
-  "exit_code": 0,
-  "stdout": "Version: ...\n",
-  "stderr": ""
+  "accounts": [
+    {
+      "user_id": 123456789,
+      "display_name": "Alice",
+      "username": "alice",
+      "active": true
+    }
+  ]
 }
 ```
 
-Failure response example:
+### Phone login flow
+
+Start the flow:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/start \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+8613800138000"}'
+```
+
+Successful response:
 
 ```json
 {
-  "ok": false,
-  "id": "req-2",
-  "exit_code": 1,
-  "stdout": "",
-  "stderr": "Error: ...\n"
+  "ok": true,
+  "flow_id": "flow-1710000000-1",
+  "kind": "phone",
+  "status": "waiting_for_code",
+  "phone": "+8613800138000"
 }
 ```
 
-### HTTP behavior
+Submit the verification code:
 
-- Only `HTTP/1.x` is supported at the moment.
-- Request bodies are limited to 1 MB.
-- Connections are closed after each request. Keep-alive is not used.
-- HTTP mode runs commands through a child process of the current binary and captures `stdout` and `stderr`.
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/submit-code \
+  -H "Content-Type: application/json" \
+  -d '{"flow_id":"flow-1710000000-1","code":"12345"}'
+```
+
+If the account requires 2FA, the response changes to `waiting_for_password`, and you then call:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/submit-password \
+  -H "Content-Type: application/json" \
+  -d '{"flow_id":"flow-1710000000-1","password":"your-password"}'
+```
+
+### QR login flow
+
+Start the flow:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/qr/start \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Example response:
+
+```json
+{
+  "ok": true,
+  "flow_id": "flow-1710000000-2",
+  "kind": "qr",
+  "status": "waiting_for_scan",
+  "login_url": "tg://login?token=...",
+  "expires_at": 1710000032
+}
+```
+
+Poll the flow:
+
+```bash
+curl http://127.0.0.1:8787/v1/auth/flows/flow-1710000000-2
+```
+
+When the scan completes successfully, the response changes to:
+
+```json
+{
+  "ok": true,
+  "flow_id": "flow-1710000000-2",
+  "kind": "qr",
+  "status": "completed",
+  "account": {
+    "user_id": 123456789,
+    "display_name": "Alice",
+    "username": "alice",
+    "active": true
+  }
+}
+```
+
+### Upload / download / forward endpoints
+
+These endpoints use structured JSON instead of command arrays.
+
+Upload example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/uploads \
+  -H "Content-Type: application/json" \
+  -d '{"path":["./videos"],"chat":"me","group":true,"thumb":["./covers"]}'
+```
+
+Download example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/downloads \
+  -H "Content-Type: application/json" \
+  -d '{"url":["https://t.me/telegram/193"],"path":"./downloads"}'
+```
+
+Forward example:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/forwards \
+  -H "Content-Type: application/json" \
+  -d '{"from":["https://t.me/channel/123"],"to":"me","mode":"smart"}'
+```
+
+These operation endpoints currently return:
+
+- `ok`
+- `exit_code`
+- `stdout`
+- `stderr`
+
+The request fields follow the same semantics as the CLI flags for the corresponding command.
 
 ## Limitations
 
-The following limitations apply to both service modes:
-
-- Nested `service` execution is not supported
-- `auth login add` is not supported
-
-Reasons:
-
-- Recursive `service` invocation is not meaningful
-- `auth login add` needs exclusive `stdin` access for phone, code, password, or QR interaction
-
-Additional limitation:
-
-- HTTP mode does not support `exit` or `quit`
-
-## Examples
-
-### `stdio` mode
-
-```text
-version
-{"id":"req-1","args":["download","--url","https://t.me/telegram/193"]}
-exit
-```
-
-### HTTP mode
-
-```bash
-curl http://127.0.0.1:8787/health
-```
-
-```bash
-curl -X POST http://127.0.0.1:8787/execute \
-  -H "Content-Type: application/json" \
-  -d '{"id":"req-1","args":["version"]}'
-```
+- Nested `service` execution is not supported in `stdio` mode.
+- `auth login add` is still not accepted through `stdio` mode because it requires exclusive `stdin`.
+- Login flows in HTTP mode are stored in the service process memory and expire automatically after inactivity.
+- QR login still depends on Telegram server behavior; if Telegram requires extra verification, the flow may need to fall back to phone login.
 
 ## Reference
 
 | File | Description |
 |------|------|
 | `src/cli/args/service.rs` | Argument definitions |
-| `src/commands/service.rs` | `stdio` and HTTP mode implementation |
+| `src/commands/service.rs` | `stdio` mode and HTTP server entry |
+| `src/commands/service_api.rs` | HTTP routing, account endpoints, and login flows |
 | `src/commands/mod.rs` | Top-level command dispatch |

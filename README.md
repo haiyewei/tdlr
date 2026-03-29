@@ -99,6 +99,6 @@ cargo build --release
 `tdlr service` supports:
 
 - `stdio` command execution for local automation.
-- HTTP API execution through `POST /execute` and health checks on `/health`.
+- typed HTTP endpoints for accounts, login flows, uploads, downloads, forwards, and health checks.
 
 See [docs/en/service.md](./docs/en/service.md) for request formats, response formats, and limitations.
