@@ -178,7 +178,7 @@ pub async fn upload_media_group_with_thumbnails(
     }
 
     let count = media_items.len();
-    client.send_album(target_peer, media_items).await?;
+    Box::pin(client.send_album(target_peer, media_items)).await?;
 
     Ok(count)
 }

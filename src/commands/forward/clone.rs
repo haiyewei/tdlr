@@ -463,6 +463,6 @@ async fn upload_clone_file(
         msg = msg.reply_to(Some(tid));
     }
 
-    let message = client.send_message(chat.input_peer.clone(), msg).await?;
+    let message = Box::pin(client.send_message(chat.input_peer.clone(), msg)).await?;
     Ok(message)
 }

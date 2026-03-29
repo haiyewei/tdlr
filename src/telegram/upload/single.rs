@@ -165,7 +165,7 @@ pub async fn upload_file_with_progress(
         msg = msg.reply_to(Some(tid));
     }
 
-    let message = client.send_message(chat.input_peer.clone(), msg).await?;
+    let message = Box::pin(client.send_message(chat.input_peer.clone(), msg)).await?;
 
     Ok(message)
 }
@@ -183,7 +183,7 @@ pub async fn send_text(
         msg = msg.reply_to(Some(tid));
     }
 
-    let message = client.send_message(chat.input_peer.clone(), msg).await?;
+    let message = Box::pin(client.send_message(chat.input_peer.clone(), msg)).await?;
 
     Ok(message)
 }
