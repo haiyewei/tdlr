@@ -170,9 +170,7 @@ fn validate_api_credentials(api_id: i32, api_hash: &str) {
                 "failed to validate TG_API_ID/TG_API_HASH with Telegram: {}",
                 err
             ),
-            Err(_) => panic!(
-                "timed out while validating TG_API_ID/TG_API_HASH with Telegram"
-            ),
+            Err(_) => panic!("timed out while validating TG_API_ID/TG_API_HASH with Telegram"),
         }
     });
 }
