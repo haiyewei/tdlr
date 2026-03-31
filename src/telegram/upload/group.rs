@@ -1,6 +1,7 @@
 //! Media group upload
 
 use super::chat::ResolvedChat;
+use super::embedded_thumbnail::prepare_embedded_thumbnail;
 use super::mime::{is_photo_ext, is_video_ext};
 use super::video_metadata::video_attribute_for_path;
 use crate::i18n::{is_zh, pick};
@@ -161,9 +162,31 @@ pub async fn upload_media_group_with_thumbnails(
             media.document(uploaded)
         };
 
-        if let Some(path) = item.thumbnail_path {
-            if is_video_ext(&ext) {
-                let thumb_uploaded = client.upload_file(path).await?;
+        if is_video_ext(&ext) {
+            let embedded_thumbnail = if item.thumbnail_path.is_none() {
+                prepare_embedded_thumbnail(file_path).await
+            } else {
+                None
+            };
+            let thumb_uploaded = match (
+                item.thumbnail_path,
+                embedded_thumbnail.as_ref().map(|thumb| thumb.path()),
+            ) {
+                (Some(path), _) => Some(client.upload_file(path).await?),
+                (None, Some(path)) => match client.upload_file(path).await {
+                    Ok(uploaded) => Some(uploaded),
+                    Err(error) => {
+                        eprintln!(
+                            "{}: {}",
+                            pick("警告", "Warning"),
+                            format_thumbnail_upload_error(file_path, &error)
+                        );
+                        None
+                    }
+                },
+                (None, None) => None,
+            };
+            if let Some(thumb_uploaded) = thumb_uploaded {
                 media = media.thumbnail(thumb_uploaded);
             }
         }
@@ -175,4 +198,16 @@ pub async fn upload_media_group_with_thumbnails(
     Box::pin(client.send_album(target_peer, media_items)).await?;
 
     Ok(count)
+}
+
+fn format_thumbnail_upload_error(file_path: &Path, error: &dyn std::fmt::Display) -> String {
+    format!(
+        "{} '{}': {}",
+        pick(
+            "上传自动提取的内嵌封面失败，已回退为无封面",
+            "Failed to upload auto-extracted embedded thumbnail; falling back to no thumbnail"
+        ),
+        file_path.display(),
+        error
+    )
 }

@@ -267,6 +267,8 @@ curl -X POST http://127.0.0.1:8787/v1/forwards \
 
 请求字段语义与对应 CLI 命令参数保持一致。
 
+对于 `POST /v1/uploads`，封面行为也与 CLI 保持一致：优先使用显式 `thumb` / `thumb_map`，否则服务会尝试提取视频内嵌封面，最后再回退为无封面上传。
+
 ## 限制
 
 - `stdio` 模式仍然不支持嵌套执行 `service`。

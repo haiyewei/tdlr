@@ -7,7 +7,7 @@
 ## 功能
 
 - 管理多个 Telegram 账号，并在本地切换当前激活账号。
-- 上传本地文件或目录，支持扩展名过滤、路由表达式、说明文字和媒体组。
+- 上传本地文件或目录，支持扩展名过滤、路由表达式、说明文字、媒体组，以及视频内嵌封面的自动回退。
 - 从 Telegram 消息链接下载文件或文本，支持文件名模板。
 - 以 `direct`、`clone` 或 `smart` 模式转发消息。
 - 以持久服务模式运行 `tdlr`，通过 `stdio` 或 HTTP API 传入命令。
@@ -75,6 +75,8 @@ tdlr download -u "https://t.me/telegram/193" -p ./downloads
 tdlr forward -f https://t.me/channel/123 -t @backup
 tdlr service --http-bind 127.0.0.1:8787
 ```
+
+如果视频上传时没有显式传入 `--thumb` 或 `--thumb-map`，`tdlr` 现在会先尝试复用支持容器里的内嵌封面，再回退为无封面上传。
 
 ## 从源码构建
 

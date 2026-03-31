@@ -267,6 +267,8 @@ These operation endpoints currently return:
 
 The request fields follow the same semantics as the CLI flags for the corresponding command.
 
+For `POST /v1/uploads`, thumbnail behavior also matches the CLI: explicit `thumb` / `thumb_map` wins, otherwise the service tries embedded video cover extraction before falling back to no thumbnail.
+
 ## Limitations
 
 - Nested `service` execution is not supported in `stdio` mode.

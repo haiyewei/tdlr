@@ -7,7 +7,7 @@
 ## Features
 
 - Manage multiple Telegram accounts and switch the active account locally.
-- Upload files or directories with extension filters, routing expressions, captions, and media groups.
+- Upload files or directories with extension filters, routing expressions, captions, media groups, and automatic embedded video cover fallback.
 - Download files or text from Telegram message links with filename templates.
 - Forward messages in `direct`, `clone`, or `smart` mode.
 - Run `tdlr` as a persistent service and send commands over `stdio` or an HTTP API.
@@ -75,6 +75,8 @@ tdlr download -u "https://t.me/telegram/193" -p ./downloads
 tdlr forward -f https://t.me/channel/123 -t @backup
 tdlr service --http-bind 127.0.0.1:8787
 ```
+
+If a video upload does not specify `--thumb` or `--thumb-map`, `tdlr` now tries to reuse embedded cover art from supported containers before falling back to no thumbnail.
 
 ## Build From Source
 

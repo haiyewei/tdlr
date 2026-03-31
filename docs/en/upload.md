@@ -49,6 +49,9 @@ tdlr upload --path <PATH>... [OPTIONS]
 - `--thumb` only applies to video uploads. Each value may point to an image file or a directory that is scanned recursively for images.
 - Thumbnail assignment order is: explicit `--thumb-map`, then unique file-stem match, then remaining thumbnails in input order.
 - `--thumb-map` accepts either a full upload path or a unique file name / stem on the left side.
+- When a video still has no assigned thumbnail after `--thumb` / `--thumb-map` resolution, `upload` tries to extract embedded cover art automatically.
+- Automatic embedded cover extraction currently checks `mp4` / `mov` / `m4v` / `3gp` for `covr` first and then attached-picture tracks, and checks `mkv` / `webm` for image attachments.
+- If no supported embedded artwork is found, the upload continues without a thumbnail.
 - `--group` only processes images and videos. Unsupported files are skipped and counted as failures.
 - `--rm` deletes processed files after the upload workflow finishes.
 
@@ -81,6 +84,8 @@ tdlr upload -p ./videos --thumb-map "./videos/a.mp4=./covers/a.jpg" "./videos/b.
 ```
 
 Send it to `POST /v1/uploads`.
+
+`thumb` and `thumb_map` keep the same priority as the CLI. If neither field provides a thumbnail for a video, the HTTP upload endpoint also tries embedded cover extraction before sending the file without a thumbnail.
 
 ## Routing expression: `--to`
 
@@ -131,5 +136,6 @@ tdlr upload -p ./media --to 'if(is_video, "-1001111111111", if(is_image, "-10022
 | `src/commands/upload/thumbnail.rs` | Thumbnail collection and video-to-thumbnail assignment |
 | `src/commands/upload/expr.rs` | Routing expression implementation |
 | `src/telegram/upload/chat.rs` | Destination chat resolution |
+| `src/telegram/upload/embedded_thumbnail.rs` | Embedded cover extraction and temporary thumbnail preparation |
 | `src/telegram/upload/group.rs` | Media group upload |
 | `src/telegram/upload/single.rs` | Single-file upload |

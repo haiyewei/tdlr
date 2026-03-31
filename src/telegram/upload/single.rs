@@ -1,8 +1,10 @@
 //! Single file upload
 
 use super::chat::ResolvedChat;
+use super::embedded_thumbnail::prepare_embedded_thumbnail;
 use super::mime::{is_photo_ext, is_video_ext};
 use super::video_metadata::video_attribute_for_path;
+use crate::i18n::pick;
 use crate::utils::create_shared_progress_bar;
 use anyhow::Result;
 use grammers_client::{
@@ -142,10 +144,28 @@ pub async fn upload_file_with_progress(
         msg = msg.photo(uploaded);
     } else if is_video_ext(&ext) {
         let video_attribute = video_attribute_for_path(file_path).await;
-        let thumb_uploaded = if let Some(path) = thumbnail_path {
-            Some(client.upload_file(path).await?)
+        let embedded_thumbnail = if thumbnail_path.is_none() {
+            prepare_embedded_thumbnail(file_path).await
         } else {
             None
+        };
+        let thumb_uploaded = match (
+            thumbnail_path,
+            embedded_thumbnail.as_ref().map(|thumb| thumb.path()),
+        ) {
+            (Some(path), _) => Some(client.upload_file(path).await?),
+            (None, Some(path)) => match client.upload_file(path).await {
+                Ok(uploaded) => Some(uploaded),
+                Err(error) => {
+                    eprintln!(
+                        "{}: {}",
+                        pick("警告", "Warning"),
+                        format_thumbnail_upload_error(file_path, &error)
+                    );
+                    None
+                }
+            },
+            (None, None) => None,
         };
         msg = msg.document(uploaded).attribute(video_attribute);
         if let Some(thumb) = thumb_uploaded {
@@ -162,6 +182,18 @@ pub async fn upload_file_with_progress(
     let message = Box::pin(client.send_message(chat.input_peer.clone(), msg)).await?;
 
     Ok(message)
+}
+
+fn format_thumbnail_upload_error(file_path: &Path, error: &dyn std::fmt::Display) -> String {
+    format!(
+        "{} '{}': {}",
+        pick(
+            "上传自动提取的内嵌封面失败，已回退为无封面",
+            "Failed to upload auto-extracted embedded thumbnail; falling back to no thumbnail"
+        ),
+        file_path.display(),
+        error
+    )
 }
 
 /// Send a text message to Telegram

@@ -49,6 +49,9 @@ tdlr upload --path <PATH>... [OPTIONS]
 - `--thumb` 只对视频上传生效；每个值都可以是图片文件，也可以是会被递归扫描的目录。
 - 封面分配顺序是：显式 `--thumb-map`，其次按文件 stem 唯一匹配，最后按剩余输入顺序兜底。
 - `--thumb-map` 左侧既可以写完整视频路径，也可以写唯一的文件名或 stem。
+- 如果某个视频在 `--thumb` / `--thumb-map` 处理后仍然没有封面，`upload` 会自动尝试提取视频文件内嵌封面。
+- 当前自动提取逻辑会先检查 `mp4` / `mov` / `m4v` / `3gp` 的 `covr`，再检查 attached picture 轨；对 `mkv` / `webm` 会检查图片附件。
+- 如果没有找到受支持的内嵌封面，上传会继续执行，只是保持无封面。
 - `--group` 只会处理图片和视频；不支持媒体组的文件会被跳过并计入失败统计。
 - `--rm` 会在全部上传流程结束后删除已处理文件。
 
@@ -81,6 +84,8 @@ tdlr upload -p ./videos --thumb-map "./videos/a.mp4=./covers/a.jpg" "./videos/b.
 ```
 
 把这个 JSON 发送到 `POST /v1/uploads` 即可。
+
+`thumb` 和 `thumb_map` 的优先级与 CLI 完全一致；如果这两个字段都没有为某个视频提供封面，HTTP 上传端点也会先尝试内嵌封面提取，再以无封面的方式发送文件。
 
 ## 路由表达式 `--to`
 
@@ -131,5 +136,6 @@ tdlr upload -p ./media --to 'if(is_video, "-1001111111111", if(is_image, "-10022
 | `src/commands/upload/thumbnail.rs` | 封面文件收集和视频封面分配 |
 | `src/commands/upload/expr.rs` | 路由表达式实现 |
 | `src/telegram/upload/chat.rs` | 目标聊天解析 |
+| `src/telegram/upload/embedded_thumbnail.rs` | 内嵌封面提取和临时封面文件准备 |
 | `src/telegram/upload/group.rs` | 媒体组上传 |
 | `src/telegram/upload/single.rs` | 单文件上传 |
