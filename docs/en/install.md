@@ -44,7 +44,7 @@ curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.s
 Install a specific version:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --version v0.2.4
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --version v0.2.5
 ```
 
 Use proxy mode:
@@ -62,7 +62,7 @@ irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | i
 Install a specific version:
 
 ```powershell
-$Version = "v0.2.4"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
+$Version = "v0.2.5"; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.ps1 | iex
 ```
 
 Use proxy mode:
