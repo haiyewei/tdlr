@@ -36,7 +36,10 @@ pub fn resolve_thumbnail_assignments(
         return Ok(ThumbnailAssignments::default());
     }
 
-    let video_files: Vec<_> = files.iter().filter(|file| is_video_path(&file.path)).collect();
+    let video_files: Vec<_> = files
+        .iter()
+        .filter(|file| is_video_path(&file.path))
+        .collect();
     if video_files.is_empty() {
         bail!(
             "{}",
@@ -70,7 +73,10 @@ pub fn resolve_thumbnail_assignments(
                     if is_zh() {
                         format!("视频 '{}' 重复指定了封面映射。", video.path.display())
                     } else {
-                        format!("Video '{}' has duplicate thumbnail mappings.", video.path.display())
+                        format!(
+                            "Video '{}' has duplicate thumbnail mappings.",
+                            video.path.display()
+                        )
                     }
                 );
             }
@@ -179,7 +185,10 @@ fn resolve_video_selector<'a>(
             bail!(
                 "{}",
                 if is_zh() {
-                    format!("视频选择器 '{}' 匹配到了多个同名文件，请改用完整路径。", selector)
+                    format!(
+                        "视频选择器 '{}' 匹配到了多个同名文件，请改用完整路径。",
+                        selector
+                    )
                 } else {
                     format!(
                         "Video selector '{}' matched multiple files. Use the full path instead.",
@@ -196,7 +205,10 @@ fn resolve_video_selector<'a>(
         n if n > 1 => bail!(
             "{}",
             if is_zh() {
-                format!("视频选择器 '{}' 匹配到了多个同名 stem，请改用完整路径。", selector)
+                format!(
+                    "视频选择器 '{}' 匹配到了多个同名 stem，请改用完整路径。",
+                    selector
+                )
             } else {
                 format!(
                     "Video selector '{}' matched multiple file stems. Use the full path instead.",
@@ -340,7 +352,10 @@ fn collect_thumbnail_candidates_from_dir(
             if is_zh() {
                 format!("无法枚举封面目录 '{}'", dir.display())
             } else {
-                format!("Failed to enumerate thumbnail directory '{}'", dir.display())
+                format!(
+                    "Failed to enumerate thumbnail directory '{}'",
+                    dir.display()
+                )
             }
         })?;
 

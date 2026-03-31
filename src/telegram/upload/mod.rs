@@ -10,6 +10,7 @@ mod chat;
 mod group;
 mod mime;
 mod single;
+mod video_metadata;
 
 pub use chat::{resolve_chat, ResolvedChat};
 pub use group::{

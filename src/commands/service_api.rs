@@ -311,7 +311,10 @@ async fn finalize_authenticated_flow(
     user: User,
 ) -> Result<AuthAccountSummary> {
     let user_id = user.raw.id();
-    let display_name = user.first_name().unwrap_or(pick("用户", "User")).to_string();
+    let display_name = user
+        .first_name()
+        .unwrap_or(pick("用户", "User"))
+        .to_string();
     let username = user.username().map(|value| value.to_string());
 
     drop(tg);
@@ -484,7 +487,11 @@ fn build_forward_args(request: &ForwardRequest) -> Vec<String> {
     args
 }
 
-fn child_response(status: std::process::ExitStatus, stdout: String, stderr: String) -> (u16, Value) {
+fn child_response(
+    status: std::process::ExitStatus,
+    stdout: String,
+    stderr: String,
+) -> (u16, Value) {
     let ok = status.success();
     let code = if ok { 200 } else { 400 };
     (
@@ -518,7 +525,11 @@ where
             "request body must be valid UTF-8",
         ))
     })?;
-    let payload = if text.trim().is_empty() { "{}" } else { text.trim() };
+    let payload = if text.trim().is_empty() {
+        "{}"
+    } else {
+        text.trim()
+    };
     serde_json::from_str(payload).map_err(|err| {
         ApiError::bad_request(if is_zh() {
             format!("无效的 JSON 请求: {}", err)
@@ -558,12 +569,10 @@ impl HttpApiState {
     }
 
     async fn cancel_flow(&self, flow_id: &str) -> ApiResult<Value> {
-        let flow = self
-            .flows
-            .write()
-            .await
-            .remove(flow_id)
-            .ok_or_else(|| ApiError::not_found(pick("登录流程不存在", "login flow not found")))?;
+        let flow =
+            self.flows.write().await.remove(flow_id).ok_or_else(|| {
+                ApiError::not_found(pick("登录流程不存在", "login flow not found"))
+            })?;
 
         let mut guard = flow.lock().await;
         match std::mem::replace(&mut *guard, AuthFlow::Consumed) {
@@ -594,7 +603,10 @@ impl HttpApiState {
         for (flow_id, flow) in snapshot {
             let expired = {
                 let guard = flow.lock().await;
-                guard.common().map(|common| common.is_expired()).unwrap_or(false)
+                guard
+                    .common()
+                    .map(|common| common.is_expired())
+                    .unwrap_or(false)
             };
             if expired {
                 let _ = self.cancel_flow(&flow_id).await;
@@ -640,12 +652,12 @@ async fn account_status_payload() -> ApiResult<Value> {
                     detail = match client.get_me().await {
                         Ok(user) => {
                             username = user.username().map(|value| value.to_string()).or(username);
-                            user.first_name().unwrap_or(pick("未知", "Unknown")).to_string()
-                        }
-                        Err(_) => {
-                            pick("已授权（获取信息失败）", "Authorized (failed to get info)")
+                            user.first_name()
+                                .unwrap_or(pick("未知", "Unknown"))
                                 .to_string()
                         }
+                        Err(_) => pick("已授权（获取信息失败）", "Authorized (failed to get info)")
+                            .to_string(),
                     };
                 }
                 Ok(false) => {
@@ -942,10 +954,7 @@ async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
     }
 }
 
-async fn submit_phone_password(
-    state: Arc<HttpApiState>,
-    body: &[u8],
-) -> ApiResult<(u16, Value)> {
+async fn submit_phone_password(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(u16, Value)> {
     let request: PhonePasswordRequest = parse_json_body(body)?;
     if request.password.trim().is_empty() {
         return Err(ApiError::bad_request(pick(
@@ -971,7 +980,8 @@ async fn submit_phone_password(
             common.touch();
             let result = tokio::time::timeout(
                 Duration::from_secs(30),
-                tg.inner().check_password(password_token, request.password.trim()),
+                tg.inner()
+                    .check_password(password_token, request.password.trim()),
             )
             .await
             .map_err(|_| ApiError::new(504, pick("密码校验超时", "password check timed out")))?;
@@ -1357,7 +1367,10 @@ async fn get_flow_status(state: Arc<HttpApiState>, flow_id: &str) -> ApiResult<(
         }
         AuthFlow::Consumed => {
             *guard = AuthFlow::Consumed;
-            Err(ApiError::not_found(pick("登录流程不存在", "login flow not found")))
+            Err(ApiError::not_found(pick(
+                "登录流程不存在",
+                "login flow not found",
+            )))
         }
     }
 }
@@ -1432,7 +1445,9 @@ pub(crate) async fn route_http_request(
                 "invalid account id",
             ))),
         },
-        ("POST", ["v1", "auth", "phone", "start"]) => start_phone_login(Arc::clone(&state), body).await,
+        ("POST", ["v1", "auth", "phone", "start"]) => {
+            start_phone_login(Arc::clone(&state), body).await
+        }
         ("POST", ["v1", "auth", "phone", "submit-code"]) => {
             submit_phone_code(Arc::clone(&state), body).await
         }
@@ -1440,10 +1455,13 @@ pub(crate) async fn route_http_request(
             submit_phone_password(Arc::clone(&state), body).await
         }
         ("POST", ["v1", "auth", "qr", "start"]) => start_qr_login(Arc::clone(&state), body).await,
-        ("GET", ["v1", "auth", "flows", flow_id]) => get_flow_status(Arc::clone(&state), flow_id).await,
-        ("DELETE", ["v1", "auth", "flows", flow_id]) => {
-            state.cancel_flow(flow_id).await.map(|payload| (200, payload))
+        ("GET", ["v1", "auth", "flows", flow_id]) => {
+            get_flow_status(Arc::clone(&state), flow_id).await
         }
+        ("DELETE", ["v1", "auth", "flows", flow_id]) => state
+            .cancel_flow(flow_id)
+            .await
+            .map(|payload| (200, payload)),
         ("POST", ["v1", "uploads"]) => run_upload(body).await,
         ("POST", ["v1", "downloads"]) => run_download(body).await,
         ("POST", ["v1", "forwards"]) => run_forward(body).await,

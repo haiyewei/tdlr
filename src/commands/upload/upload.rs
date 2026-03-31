@@ -65,8 +65,7 @@ pub async fn run(
 
     let mut stats = UploadStats::default();
     stats.add_failed(initial_failed);
-    let thumbnails =
-        resolve_thumbnail_assignments(&files, thumb.as_deref(), thumb_map.as_deref())?;
+    let thumbnails = resolve_thumbnail_assignments(&files, thumb.as_deref(), thumb_map.as_deref())?;
 
     if thumbnails.unused_count > 0 {
         output::print_unused_thumbnails(thumbnails.unused_count);

@@ -131,12 +131,14 @@ pub async fn login_with_phone(
                 print!(
                     "{}",
                     if crate::i18n::is_zh() {
-                        format!("请重新输入验证码（第 {}/{} 次）：", code_attempt, MAX_CODE_ATTEMPTS)
+                        format!(
+                            "请重新输入验证码（第 {}/{} 次）：",
+                            code_attempt, MAX_CODE_ATTEMPTS
+                        )
                     } else {
                         format!(
                             "Enter the verification code again (attempt {}/{}): ",
-                            code_attempt,
-                            MAX_CODE_ATTEMPTS
+                            code_attempt, MAX_CODE_ATTEMPTS
                         )
                     }
                 );

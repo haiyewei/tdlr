@@ -2,9 +2,9 @@
 
 use super::chat::ResolvedChat;
 use super::mime::{is_photo_ext, is_video_ext};
+use super::video_metadata::video_attribute_for_path;
 use crate::utils::create_shared_progress_bar;
 use anyhow::Result;
-use grammers_client::media::Attribute;
 use grammers_client::{
     message::{InputMessage, Message},
     Client,
@@ -14,7 +14,6 @@ use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, ReadBuf};
 
@@ -142,18 +141,13 @@ pub async fn upload_file_with_progress(
     if is_photo_ext(&ext) {
         msg = msg.photo(uploaded);
     } else if is_video_ext(&ext) {
+        let video_attribute = video_attribute_for_path(file_path).await;
         let thumb_uploaded = if let Some(path) = thumbnail_path {
             Some(client.upload_file(path).await?)
         } else {
             None
         };
-        msg = msg.document(uploaded).attribute(Attribute::Video {
-            round_message: false,
-            supports_streaming: true,
-            duration: Duration::from_secs(0),
-            w: 0,
-            h: 0,
-        });
+        msg = msg.document(uploaded).attribute(video_attribute);
         if let Some(thumb) = thumb_uploaded {
             msg = msg.thumbnail(thumb);
         }

@@ -2,16 +2,15 @@
 
 use super::chat::ResolvedChat;
 use super::mime::{is_photo_ext, is_video_ext};
+use super::video_metadata::video_attribute_for_path;
 use crate::i18n::{is_zh, pick};
 use anyhow::{bail, Result};
-use grammers_client::media::Attribute;
 use grammers_client::{media::InputMedia, Client};
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, ReadBuf};
 
@@ -156,13 +155,8 @@ pub async fn upload_media_group_with_thumbnails(
         media = if is_photo_ext(&ext) {
             media.photo(uploaded)
         } else if is_video_ext(&ext) {
-            media.document(uploaded).attribute(Attribute::Video {
-                round_message: false,
-                supports_streaming: true,
-                duration: Duration::from_secs(0),
-                w: 0,
-                h: 0,
-            })
+            let video_attribute = video_attribute_for_path(file_path).await;
+            media.document(uploaded).attribute(video_attribute)
         } else {
             media.document(uploaded)
         };
