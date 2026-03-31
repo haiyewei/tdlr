@@ -7,6 +7,7 @@
 //! - `mime.rs` - MIME type utilities
 
 mod chat;
+mod embedded_thumbnail;
 mod group;
 mod mime;
 mod single;
