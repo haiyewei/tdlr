@@ -2,8 +2,8 @@
 
 The install scripts have been merged into a single entry point per platform:
 
-- Unix: `scripts/install.sh` / `scripts/uninstall.sh`
-- Windows: `scripts/install.ps1` / `scripts/uninstall.ps1`
+- Unix: `scripts/install.sh` / `scripts/upgrade.sh` / `scripts/uninstall.sh`
+- Windows: `scripts/install.ps1` / `scripts/upgrade.ps1` / `scripts/uninstall.ps1`
 
 Default behavior:
 
@@ -11,6 +11,7 @@ Default behavior:
 - Install into user-owned directories instead of system directories
 - Update user-level `PATH` instead of machine-level `PATH`
 - Do not require `sudo` or administrator privileges
+- The upgrade scripts detect the current install directory and upgrade to the latest remote release by default
 - The uninstall scripts detect current install locations and legacy system-wide locations from Git history when available
 
 Default install directories:
@@ -136,7 +137,59 @@ $env:TG_API_HASH = "your_api_hash"
 
 ---
 
-## 4. Uninstall
+## 4. Upgrade
+
+By default, the upgrade scripts:
+
+- Detect the directory of the current `tdlr` installation and replace it in place
+- Upgrade to the latest remote release package
+- Support flags such as `--proxy`, `--install-dir`, and `--source local`
+
+If no existing install is detected, pass `--install-dir` on Unix or `-InstallDir` on PowerShell to use the upgrader as an installer for a specific directory.
+
+### Linux / macOS
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.sh | bash
+```
+
+Use proxy mode:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.sh | bash -s -- --proxy
+```
+
+Upgrade from local source inside the repository:
+
+```bash
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+bash scripts/upgrade.sh --source local
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.ps1 | iex
+```
+
+Use proxy mode:
+
+```powershell
+$Proxy = $true; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.ps1 | iex
+```
+
+Upgrade from local source inside the repository:
+
+```powershell
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+.\scripts\upgrade.ps1 -Source Local
+```
+
+---
+
+## 5. Uninstall
 
 The uninstall scripts remove binaries from the current user install directory, inspect `PATH` for existing installs, and also look at historical installer paths from Git history when they run inside the repository. That covers previous system-wide installs such as `/usr/local/bin` and `C:\tdlr`.
 

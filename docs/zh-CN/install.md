@@ -2,8 +2,8 @@
 
 安装脚本已经合并为一套统一入口：
 
-- Unix: `scripts/install.sh` / `scripts/uninstall.sh`
-- Windows: `scripts/install.ps1` / `scripts/uninstall.ps1`
+- Unix: `scripts/install.sh` / `scripts/upgrade.sh` / `scripts/uninstall.sh`
+- Windows: `scripts/install.ps1` / `scripts/upgrade.ps1` / `scripts/uninstall.ps1`
 
 默认行为：
 
@@ -11,6 +11,7 @@
 - 安装到用户目录，而不是系统目录
 - 写入用户级 PATH，而不是机器级 PATH
 - 不再要求 `sudo` 或管理员权限
+- 升级脚本会自动识别当前安装目录，默认升级到最新远程发布包
 - 卸载脚本会自动识别当前安装目录，并在仓库内运行时结合 Git 历史识别旧版系统级安装路径
 
 默认安装目录：
@@ -136,7 +137,59 @@ $env:TG_API_HASH = "your_api_hash"
 
 ---
 
-## 4. 卸载
+## 4. 升级
+
+升级脚本默认会：
+
+- 优先识别当前已经安装的 `tdlr` 所在目录，然后原地覆盖升级
+- 默认使用远程发布包升级到最新版本
+- 支持 `--proxy`、`--install-dir`、`--source local` 等参数
+
+如果没有检测到现有安装，可以显式传 `--install-dir` 或 `-InstallDir`，把升级脚本当作“安装到指定目录”的入口使用。
+
+### Linux / macOS
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.sh | bash
+```
+
+使用代理：
+
+```bash
+curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.sh | bash -s -- --proxy
+```
+
+在仓库内从本地源码升级：
+
+```bash
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+bash scripts/upgrade.sh --source local
+```
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.ps1 | iex
+```
+
+使用代理：
+
+```powershell
+$Proxy = $true; irm https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/upgrade.ps1 | iex
+```
+
+在仓库内从本地源码升级：
+
+```powershell
+git clone https://github.com/haiyewei/tdlr.git
+cd tdlr
+.\scripts\upgrade.ps1 -Source Local
+```
+
+---
+
+## 5. 卸载
 
 卸载脚本会删除当前用户安装目录里的二进制文件，也会检查 `PATH` 中已经存在的安装位置；如果脚本是在仓库里运行，还会结合 Git 历史中的旧安装脚本去识别旧版系统级安装目录，例如 `/usr/local/bin` 和 `C:\tdlr`。
 
