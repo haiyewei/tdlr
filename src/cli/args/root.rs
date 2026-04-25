@@ -1,6 +1,7 @@
 //! Root CLI and Commands enum
 
 use super::auth::AuthCommands;
+use super::codes::CodesArgs;
 use super::download::DownloadArgs;
 use super::forward::ForwardArgs;
 use super::service::ServiceArgs;
@@ -27,6 +28,8 @@ pub enum Commands {
     /// Manage Telegram authentication
     #[command(subcommand)]
     Auth(AuthCommands),
+    /// Show recent messages from the Verification Codes dialog
+    Codes(CodesArgs),
     /// Upload files/dirs to Telegram
     Upload(UploadArgs),
     /// Download files from Telegram message URLs

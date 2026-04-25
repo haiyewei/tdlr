@@ -15,6 +15,7 @@ tdlr
 │   │   └── use
 │   ├── logout
 │   └── status
+├── codes
 ├── upload
 ├── download
 ├── forward
@@ -27,6 +28,7 @@ tdlr
 |------|------|
 | [`version`](./version.md) | 输出版本、Rust 编译器版本和当前目标平台 |
 | [`auth`](./auth.md) | 管理 Telegram 登录账号、激活账号和账号状态 |
+| [`codes`](./codes.md) | 显示 `Verification Codes` 会话的最近消息 |
 | [`upload`](./upload.md) | 将本地文件或目录上传到 Telegram |
 | [`download`](./download.md) | 从 Telegram 消息链接下载文件或文本 |
 | [`forward`](./forward.md) | 将 Telegram 消息转发到其他会话，支持克隆模式 |
@@ -49,6 +51,7 @@ tdlr
 |------|------|
 | [version](./version.md) | `version` 命令完整说明 |
 | [auth](./auth.md) | `auth` 命令完整说明 |
+| [codes](./codes.md) | `codes` 命令完整说明 |
 | [upload](./upload.md) | `upload` 命令完整说明 |
 | [download](./download.md) | `download` 命令完整说明 |
 | [forward](./forward.md) | `forward` 命令完整说明 |

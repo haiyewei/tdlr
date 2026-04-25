@@ -44,6 +44,9 @@
     "auth.status": {
       "about": "显示所有账号状态。"
     },
+    "codes": {
+      "about": "显示 Verification Codes 会话的最近消息。"
+    },
     "upload": {
       "about": "上传文件或目录到 Telegram。"
     },
@@ -65,6 +68,8 @@
     "all": "作用于所有账号。",
     "name": "可选的账号显示名称。",
     "method": "登录方式。",
+    "code_via": "手机号登录验证码通道偏好。",
+    "limit": "显示的消息数量。",
     "url": "Telegram 消息 URL。",
     "path": "路径值。",
     "include": "仅包含指定文件扩展名。",
@@ -91,6 +96,9 @@
     "root.lang": "CLI 帮助语言。可选值：zh、en。",
     "auth.logout.id": "要退出的用户 ID。未提供时使用当前活跃账号。",
     "auth.login.add.method": "登录方式。可选值：phone、qr。",
+    "auth.login.add.code_via": "手机号验证码通道偏好。可选值：auto、app、sms。",
+    "codes.limit": "要显示的最近消息条数。默认 10。",
+    "codes.account": "要使用的账号用户 ID。默认使用当前活跃账号。",
     "upload.path": "要上传的文件或目录。",
     "upload.chat": "目标聊天 ID 或用户名。默认发送到 Saved Messages。",
     "upload.account": "要使用的账号用户 ID，可传多个。默认使用当前活跃账号。",

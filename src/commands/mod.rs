@@ -1,6 +1,7 @@
 //! Command implementations
 
 mod auth;
+mod codes;
 mod download;
 mod forward;
 mod service;
@@ -23,6 +24,7 @@ pub(crate) async fn execute_non_service(command: Commands) -> Result<()> {
     match command {
         Commands::Version => version::run(),
         Commands::Auth(cmd) => execute_auth(cmd).await,
+        Commands::Codes(args) => codes::run(args.limit, args.account).await,
         Commands::Upload(args) => {
             upload::run(
                 args.path,
@@ -71,7 +73,11 @@ pub(crate) async fn execute_non_service(command: Commands) -> Result<()> {
 async fn execute_auth(cmd: AuthCommands) -> Result<()> {
     match cmd {
         AuthCommands::Login(login_cmd) => match login_cmd {
-            LoginCommands::Add { name, method } => auth::login::add(name, method).await,
+            LoginCommands::Add {
+                name,
+                method,
+                code_via,
+            } => auth::login::add(name, method, code_via).await,
             LoginCommands::List => auth::login::list(),
             LoginCommands::Remove { id } => auth::login::remove(id),
             LoginCommands::Use { id } => auth::login::use_account(id),

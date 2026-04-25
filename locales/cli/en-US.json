@@ -44,6 +44,9 @@
     "auth.status": {
       "about": "Show the status of all accounts."
     },
+    "codes": {
+      "about": "Show recent messages from the Verification Codes dialog."
+    },
     "upload": {
       "about": "Upload files or directories to Telegram."
     },
@@ -65,6 +68,8 @@
     "all": "Apply to all accounts.",
     "name": "Optional account display name.",
     "method": "Login method.",
+    "code_via": "Preferred verification code delivery channel for phone login.",
+    "limit": "Number of messages to show.",
     "url": "Telegram message URLs.",
     "path": "Path value.",
     "include": "Only include the specified file extensions.",
@@ -91,6 +96,9 @@
     "root.lang": "CLI help language. Supported values: zh, en.",
     "auth.logout.id": "User ID to logout. Uses the active account when omitted.",
     "auth.login.add.method": "Login method. Supported values: phone, qr.",
+    "auth.login.add.code_via": "Preferred phone verification code channel. Supported values: auto, app, sms.",
+    "codes.limit": "Number of recent messages to show. Defaults to 10.",
+    "codes.account": "Account user ID to use. Defaults to the active account.",
     "upload.path": "Files or directories to upload.",
     "upload.chat": "Destination chat ID or username. Defaults to Saved Messages.",
     "upload.account": "Account user ID(s) to use. Defaults to the active account.",

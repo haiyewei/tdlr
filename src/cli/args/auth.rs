@@ -30,6 +30,9 @@ pub enum LoginCommands {
         /// Login method: phone or qr
         #[arg(short, long, value_enum, default_value = "qr")]
         method: LoginMethod,
+        /// Preferred delivery channel for phone login codes
+        #[arg(long, value_enum, default_value = "auto")]
+        code_via: LoginCodeVia,
     },
     /// List all logged in accounts
     List,
@@ -51,4 +54,14 @@ pub enum LoginMethod {
     Phone,
     /// Login by scanning QR code with Telegram app
     Qr,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum LoginCodeVia {
+    /// Let Telegram choose the delivery channel
+    Auto,
+    /// Prefer receiving the code inside the Telegram app
+    App,
+    /// Prefer receiving the code over SMS
+    Sms,
 }

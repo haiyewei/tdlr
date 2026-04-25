@@ -50,6 +50,9 @@ pub(crate) fn default_cli_color() -> ColorChoice {
 fn localize_root(command: Command, catalog: &'static LocaleCatalog) -> Command {
     let command = command
         .mut_subcommand("auth", |sub| localize_auth(sub, catalog))
+        .mut_subcommand("codes", |sub| {
+            standard_command(sub, catalog, "codes", catalog.headings.options.clone())
+        })
         .mut_subcommand("upload", |sub| {
             standard_command(sub, catalog, "upload", catalog.headings.options.clone())
         })

@@ -10,5 +10,6 @@ Additional entry points:
 | Topic | English | 中文 |
 |------|------|------|
 | Home | [../README.md](../README.md) | [../README.zh-CN.md](../README.zh-CN.md) |
+| Verification codes | [./en/codes.md](./en/codes.md) | [./zh-CN/codes.md](./zh-CN/codes.md) |
 | Install | [./en/install.md](./en/install.md) | [./zh-CN/install.md](./zh-CN/install.md) |
 | Android | [./en/android.md](./en/android.md) | [./zh-CN/android.md](./zh-CN/android.md) |

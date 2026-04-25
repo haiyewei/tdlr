@@ -41,7 +41,7 @@ tdlr auth <COMMAND>
 用法：
 
 ```bash
-tdlr auth login add [--name <NAME>] [--method <phone|qr>]
+tdlr auth login add [--name <NAME>] [--method <phone|qr>] [--code-via <auto|app|sms>]
 ```
 
 参数：
@@ -50,6 +50,7 @@ tdlr auth login add [--name <NAME>] [--method <phone|qr>]
 |------|------|
 | `-n, --name <NAME>` | 账号别名，仅用于本地显示 |
 | `-m, --method <METHOD>` | 登录方式，支持 `phone` 和 `qr`，默认值为 `qr` |
+| `--code-via <MODE>` | 手机号验证码通道偏好，支持 `auto`、`app`、`sms`，默认值为 `auto` |
 
 登录方式：
 
@@ -61,6 +62,9 @@ tdlr auth login add [--name <NAME>] [--method <phone|qr>]
 行为说明：
 
 - 登录过程中会先使用临时 session。
+- 对手机号登录来说，`--code-via app` 和 `--code-via sms` 只是偏好，不是强制覆盖；首次验证码通道仍由 Telegram 服务端决定。
+- 如果指定 `--code-via sms`，且 Telegram 返回后续可切换到 SMS，CLI 会按 Telegram 给出的等待时间自动等待，然后尝试调用 `auth.resendCode`。
+- 手机号登录流程会打印 Telegram 实际使用的验证码通道、后续可切换通道，以及服务端返回的等待时间。
 - 登录成功后会将 session 重命名为用户 ID 对应的正式 session。
 - 账号信息会写入本地账号元数据。
 - 新登录账号会自动设为当前激活账号。
@@ -71,6 +75,8 @@ tdlr auth login add [--name <NAME>] [--method <phone|qr>]
 ```bash
 tdlr auth login add
 tdlr auth login add --method phone
+tdlr auth login add --method phone --code-via app
+tdlr auth login add --method phone --code-via sms
 tdlr auth login add --name work --method qr
 ```
 
@@ -229,6 +235,8 @@ tdlr auth status
 |------|------|
 | `src/cli/args/auth.rs` | `auth` 参数定义 |
 | `src/commands/auth/login/add.rs` | 添加账号实现 |
+| `src/telegram/auth/phone.rs` | 交互式手机号登录流程 |
+| `src/telegram/client/instance.rs` | 原始手机号认证请求、重发验证码与登录完成逻辑 |
 | `src/commands/auth/login/list.rs` | 列出账号实现 |
 | `src/commands/auth/login/remove.rs` | 删除账号实现 |
 | `src/commands/auth/login/use_account.rs` | 切换激活账号实现 |

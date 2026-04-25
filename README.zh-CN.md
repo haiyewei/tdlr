@@ -7,6 +7,7 @@
 ## 功能
 
 - 管理多个 Telegram 账号，并在本地切换当前激活账号。
+- 查看 Telegram `Verification Codes` 会话中的最新消息。
 - 上传本地文件或目录，支持扩展名过滤、路由表达式、说明文字、媒体组，以及视频内嵌封面的自动回退。
 - 从 Telegram 消息链接下载文件或文本，支持文件名模板。
 - 以 `direct`、`clone` 或 `smart` 模式转发消息。
@@ -20,6 +21,7 @@
 | 主页 | [README.md](./README.md) | [README.zh-CN.md](./README.zh-CN.md) |
 | 文档入口 | [docs/README.md](./docs/README.md) | [docs/README.md](./docs/README.md) |
 | 命令列表 | [docs/en/command-list.md](./docs/en/command-list.md) | [docs/zh-CN/command-list.md](./docs/zh-CN/command-list.md) |
+| 验证码会话 | [docs/en/codes.md](./docs/en/codes.md) | [docs/zh-CN/codes.md](./docs/zh-CN/codes.md) |
 | 安装 | [docs/en/install.md](./docs/en/install.md) | [docs/zh-CN/install.md](./docs/zh-CN/install.md) |
 | Android | [docs/en/android.md](./docs/en/android.md) | [docs/zh-CN/android.md](./docs/zh-CN/android.md) |
 
@@ -29,6 +31,7 @@
 |------|------|
 | [`version`](./docs/zh-CN/version.md) | 输出版本、编译器和目标平台信息 |
 | [`auth`](./docs/zh-CN/auth.md) | 管理 Telegram 登录账号、当前账号和状态检查 |
+| [`codes`](./docs/zh-CN/codes.md) | 显示 `Verification Codes` 会话的最近消息 |
 | [`upload`](./docs/zh-CN/upload.md) | 将本地文件或目录上传到 Telegram |
 | [`download`](./docs/zh-CN/download.md) | 从 Telegram 消息链接下载文件或文本 |
 | [`forward`](./docs/zh-CN/forward.md) | 转发消息，支持克隆模式处理受限会话 |
@@ -65,6 +68,7 @@ tdlr version
 ```bash
 tdlr auth login add
 tdlr auth login list
+tdlr codes
 ```
 
 ### 4. 常用示例

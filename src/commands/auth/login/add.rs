@@ -1,11 +1,11 @@
 //! Add account command
 
-use crate::cli::LoginMethod;
+use crate::cli::{LoginCodeVia, LoginMethod};
 use crate::i18n::pick;
 use crate::telegram::{
     auth::{login_with_phone, login_with_qrcode},
     session::AccountInfo,
-    SessionManager, TelegramClient,
+    LoginCodePreference, SessionManager, TelegramClient,
 };
 use anyhow::Result;
 use colored::Colorize;
@@ -18,7 +18,15 @@ fn api_id() -> i32 {
 
 const API_HASH: &str = env!("TG_API_HASH");
 
-pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
+fn code_preference(code_via: LoginCodeVia) -> LoginCodePreference {
+    match code_via {
+        LoginCodeVia::Auto => LoginCodePreference::Auto,
+        LoginCodeVia::App => LoginCodePreference::App,
+        LoginCodeVia::Sms => LoginCodePreference::Sms,
+    }
+}
+
+pub async fn run(_name: Option<String>, method: LoginMethod, code_via: LoginCodeVia) -> Result<()> {
     SessionManager::ensure_dir()?;
 
     // Use temp session for login
@@ -46,7 +54,9 @@ pub async fn run(_name: Option<String>, method: LoginMethod) -> Result<()> {
             tg.get_me().await?
         } else {
             match method {
-                LoginMethod::Phone => login_with_phone(tg.inner(), API_HASH).await?,
+                LoginMethod::Phone => {
+                    login_with_phone(&tg, API_HASH, code_preference(code_via)).await?
+                }
                 LoginMethod::Qr => login_with_qrcode(&tg, api_id(), API_HASH).await?,
             }
         };

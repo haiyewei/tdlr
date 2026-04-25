@@ -111,6 +111,7 @@ HTTP API listening on http://127.0.0.1:8787
 | `POST` | `/v1/accounts/logout` | 退出一个账号或全部账号 |
 | `DELETE` | `/v1/accounts/{user_id}` | 删除一个本地保存的账号 |
 | `POST` | `/v1/auth/phone/start` | 开始手机号登录流程 |
+| `POST` | `/v1/auth/phone/resend` | 请求下一个可用的手机号验证码通道 |
 | `POST` | `/v1/auth/phone/submit-code` | 提交短信/应用验证码 |
 | `POST` | `/v1/auth/phone/submit-password` | 提交两步验证密码 |
 | `POST` | `/v1/auth/qr/start` | 开始二维码登录流程 |
@@ -153,7 +154,7 @@ HTTP API listening on http://127.0.0.1:8787
 ```bash
 curl -X POST http://127.0.0.1:8787/v1/auth/phone/start \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+8613800138000"}'
+  -d '{"phone":"+8613800138000","code_via":"sms"}'
 ```
 
 成功返回：
@@ -164,8 +165,27 @@ curl -X POST http://127.0.0.1:8787/v1/auth/phone/start \
   "flow_id": "flow-1710000000-1",
   "kind": "phone",
   "status": "waiting_for_code",
-  "phone": "+8613800138000"
+  "phone": "+8613800138000",
+  "requested_via": "sms",
+  "sent_via": "app",
+  "next_via": "sms",
+  "timeout": 60,
+  "remaining_attempts": 3
 }
+```
+
+说明：
+
+- `code_via` 支持 `auto`、`app`、`sms`。
+- `code_via` 只是偏好，不是强制要求；首次验证码通道仍由 Telegram 服务端决定。
+- `sent_via`、`next_via` 和 `timeout` 直接反映 Telegram 当前返回的验证码投递状态。
+
+需要时可请求下一个可用通道：
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/resend \
+  -H "Content-Type: application/json" \
+  -d '{"flow_id":"flow-1710000000-1"}'
 ```
 
 提交验证码：

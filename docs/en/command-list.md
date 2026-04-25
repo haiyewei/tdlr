@@ -15,6 +15,7 @@ tdlr
 │   │   └── use
 │   ├── logout
 │   └── status
+├── codes
 ├── upload
 ├── download
 ├── forward
@@ -27,6 +28,7 @@ tdlr
 |------|------|
 | [`version`](./version.md) | Print version, Rust compiler, and current target platform |
 | [`auth`](./auth.md) | Manage Telegram login accounts, active account, and account status |
+| [`codes`](./codes.md) | Show the latest messages from the `Verification Codes` dialog |
 | [`upload`](./upload.md) | Upload local files or directories to Telegram |
 | [`download`](./download.md) | Download files or text from Telegram message links |
 | [`forward`](./forward.md) | Forward Telegram messages to another chat, including clone mode |
@@ -49,6 +51,7 @@ tdlr
 |------|------|
 | [version](./version.md) | Full `version` command reference |
 | [auth](./auth.md) | Full `auth` command reference |
+| [codes](./codes.md) | Full `codes` command reference |
 | [upload](./upload.md) | Full `upload` command reference |
 | [download](./download.md) | Full `download` command reference |
 | [forward](./forward.md) | Full `forward` command reference |

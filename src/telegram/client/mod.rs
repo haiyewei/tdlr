@@ -7,5 +7,5 @@
 mod instance;
 mod pool;
 
-pub use instance::TelegramClient;
+pub use instance::{LoginCodeDelivery, LoginCodePreference, PhoneLoginCodeState, TelegramClient};
 pub use pool::{pool, ClientPool};

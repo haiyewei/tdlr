@@ -7,6 +7,7 @@
 ## Features
 
 - Manage multiple Telegram accounts and switch the active account locally.
+- Inspect the latest messages from Telegram's `Verification Codes` dialog.
 - Upload files or directories with extension filters, routing expressions, captions, media groups, and automatic embedded video cover fallback.
 - Download files or text from Telegram message links with filename templates.
 - Forward messages in `direct`, `clone`, or `smart` mode.
@@ -20,6 +21,7 @@
 | Home | [README](./README.md) | [README.zh-CN](./README.zh-CN.md) |
 | Documentation index | [docs/README.md](./docs/README.md) | [docs/README.md](./docs/README.md) |
 | Command list | [docs/en/command-list.md](./docs/en/command-list.md) | [docs/zh-CN/command-list.md](./docs/zh-CN/command-list.md) |
+| Verification codes | [docs/en/codes.md](./docs/en/codes.md) | [docs/zh-CN/codes.md](./docs/zh-CN/codes.md) |
 | Install | [docs/en/install.md](./docs/en/install.md) | [docs/zh-CN/install.md](./docs/zh-CN/install.md) |
 | Android | [docs/en/android.md](./docs/en/android.md) | [docs/zh-CN/android.md](./docs/zh-CN/android.md) |
 
@@ -29,6 +31,7 @@
 |------|------|
 | [`version`](./docs/en/version.md) | Print build, compiler, and target information |
 | [`auth`](./docs/en/auth.md) | Manage Telegram logins, active account, and account status |
+| [`codes`](./docs/en/codes.md) | Show recent messages from the `Verification Codes` dialog |
 | [`upload`](./docs/en/upload.md) | Upload local files or directories to Telegram |
 | [`download`](./docs/en/download.md) | Download files or text from Telegram message links |
 | [`forward`](./docs/en/forward.md) | Forward messages, including clone mode for restricted chats |
@@ -65,6 +68,7 @@ tdlr version
 ```bash
 tdlr auth login add
 tdlr auth login list
+tdlr codes
 ```
 
 ### 4. Common examples

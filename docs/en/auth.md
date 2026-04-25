@@ -41,7 +41,7 @@ Add a new Telegram account.
 Usage:
 
 ```bash
-tdlr auth login add [--name <NAME>] [--method <phone|qr>]
+tdlr auth login add [--name <NAME>] [--method <phone|qr>] [--code-via <auto|app|sms>]
 ```
 
 Parameters:
@@ -50,6 +50,7 @@ Parameters:
 |------|------|
 | `-n, --name <NAME>` | Account alias for local display only |
 | `-m, --method <METHOD>` | Login method. Supports `phone` and `qr`, default is `qr` |
+| `--code-via <MODE>` | Preferred phone verification code channel. Supports `auto`, `app`, and `sms`, default is `auto` |
 
 Login methods:
 
@@ -61,6 +62,9 @@ Login methods:
 Behavior:
 
 - The login flow starts with a temporary session.
+- For phone login, `--code-via app` and `--code-via sms` are preferences, not a hard override. Telegram still decides the actual initial channel.
+- If `--code-via sms` is requested and Telegram exposes SMS as the next available channel, the CLI waits for the reported timeout and tries `auth.resendCode` automatically.
+- The phone login flow prints the actual delivery channel, the next available channel, and the timeout returned by Telegram.
 - After a successful login, the session is renamed to the final session based on the user ID.
 - Account metadata is written to the local account store.
 - The newly logged-in account becomes the active account automatically.
@@ -71,6 +75,8 @@ Examples:
 ```bash
 tdlr auth login add
 tdlr auth login add --method phone
+tdlr auth login add --method phone --code-via app
+tdlr auth login add --method phone --code-via sms
 tdlr auth login add --name work --method qr
 ```
 
@@ -229,6 +235,8 @@ Account data is managed by the session manager and is stored in the user's confi
 |------|------|
 | `src/cli/args/auth.rs` | `auth` argument definitions |
 | `src/commands/auth/login/add.rs` | Add-account implementation |
+| `src/telegram/auth/phone.rs` | Interactive phone login flow |
+| `src/telegram/client/instance.rs` | Raw phone auth requests, resend, and sign-in completion |
 | `src/commands/auth/login/list.rs` | List-account implementation |
 | `src/commands/auth/login/remove.rs` | Remove-account implementation |
 | `src/commands/auth/login/use_account.rs` | Switch-active-account implementation |

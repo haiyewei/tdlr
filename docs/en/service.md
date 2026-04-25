@@ -111,6 +111,7 @@ HTTP API listening on http://127.0.0.1:8787
 | `POST` | `/v1/accounts/logout` | Logout one account or all accounts |
 | `DELETE` | `/v1/accounts/{user_id}` | Remove one saved account |
 | `POST` | `/v1/auth/phone/start` | Start phone login flow |
+| `POST` | `/v1/auth/phone/resend` | Request the next available phone code channel |
 | `POST` | `/v1/auth/phone/submit-code` | Submit login code |
 | `POST` | `/v1/auth/phone/submit-password` | Submit 2FA password |
 | `POST` | `/v1/auth/qr/start` | Start QR login flow |
@@ -153,7 +154,7 @@ Start the flow:
 ```bash
 curl -X POST http://127.0.0.1:8787/v1/auth/phone/start \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+8613800138000"}'
+  -d '{"phone":"+8613800138000","code_via":"sms"}'
 ```
 
 Successful response:
@@ -164,8 +165,27 @@ Successful response:
   "flow_id": "flow-1710000000-1",
   "kind": "phone",
   "status": "waiting_for_code",
-  "phone": "+8613800138000"
+  "phone": "+8613800138000",
+  "requested_via": "sms",
+  "sent_via": "app",
+  "next_via": "sms",
+  "timeout": 60,
+  "remaining_attempts": 3
 }
+```
+
+Notes:
+
+- `code_via` supports `auto`, `app`, and `sms`.
+- `code_via` is a preference only. Telegram still decides the actual initial delivery channel.
+- `sent_via`, `next_via`, and `timeout` expose Telegram's current delivery state directly.
+
+Request the next available channel when needed:
+
+```bash
+curl -X POST http://127.0.0.1:8787/v1/auth/phone/resend \
+  -H "Content-Type: application/json" \
+  -d '{"flow_id":"flow-1710000000-1"}'
 ```
 
 Submit the verification code:
@@ -219,9 +239,9 @@ When the scan completes successfully, the response changes to:
 {
   "ok": true,
   "flow_id": "flow-1710000000-2",
-  "kind": "qr",
-  "status": "completed",
-  "account": {
+                            "kind": "qr",
+                            "status": "completed",
+                            "account": {
     "user_id": 123456789,
     "display_name": "Alice",
     "username": "alice",

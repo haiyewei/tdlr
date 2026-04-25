@@ -4,14 +4,10 @@ use crate::telegram::{
     auth::{export_qr_login_token, try_import_login, QrLoginTokenExport},
     pool,
     session::AccountInfo,
-    SessionManager, TelegramClient,
+    LoginCodePreference, PhoneLoginCodeState, SessionManager, TelegramClient,
 };
 use anyhow::Result;
-use grammers_client::{
-    client::{LoginToken, PasswordToken},
-    peer::User,
-    SignInError,
-};
+use grammers_client::{client::PasswordToken, peer::User, SignInError};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -92,14 +88,15 @@ enum AuthFlow {
     PhoneCode {
         common: FlowCommon,
         tg: TelegramClient,
-        phone: String,
-        token: LoginToken,
+        code_state: PhoneLoginCodeState,
+        requested_via: LoginCodePreference,
         invalid_attempts: usize,
     },
     PhonePassword {
         common: FlowCommon,
         tg: TelegramClient,
         phone: String,
+        requested_via: LoginCodePreference,
         password_token: PasswordToken,
     },
     Qr {
@@ -167,12 +164,19 @@ struct LogoutRequest {
 #[derive(Debug, Deserialize)]
 struct PhoneStartRequest {
     phone: String,
+    #[serde(default)]
+    code_via: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct PhoneCodeRequest {
     flow_id: String,
     code: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PhoneResendRequest {
+    flow_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -288,6 +292,38 @@ fn sanitize_auth_code(input: &str) -> String {
                 )
         })
         .collect()
+}
+
+fn parse_code_preference(raw: Option<&str>) -> ApiResult<LoginCodePreference> {
+    match raw.unwrap_or("auto").trim().to_ascii_lowercase().as_str() {
+        "" | "auto" => Ok(LoginCodePreference::Auto),
+        "app" => Ok(LoginCodePreference::App),
+        "sms" => Ok(LoginCodePreference::Sms),
+        _ => Err(ApiError::bad_request(pick(
+            "code_via 只支持 auto、app、sms。",
+            "code_via only supports auto, app, or sms.",
+        ))),
+    }
+}
+
+fn phone_code_payload(
+    flow_id: &str,
+    requested_via: LoginCodePreference,
+    code_state: &PhoneLoginCodeState,
+    invalid_attempts: usize,
+) -> Value {
+    json!({
+        "ok": true,
+        "flow_id": flow_id,
+        "kind": "phone",
+        "status": "waiting_for_code",
+        "phone": code_state.phone,
+        "requested_via": requested_via.as_str(),
+        "sent_via": code_state.sent_via.as_str(),
+        "next_via": code_state.next_via.map(|value| value.as_str()),
+        "timeout": code_state.timeout,
+        "remaining_attempts": MAX_CODE_ATTEMPTS.saturating_sub(invalid_attempts),
+    })
 }
 
 fn cleanup_temp_session(temp_name: &str) {
@@ -791,6 +827,7 @@ async fn logout_accounts(body: &[u8]) -> ApiResult<(u16, Value)> {
 async fn start_phone_login(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(u16, Value)> {
     let request: PhoneStartRequest = parse_json_body(body)?;
     let phone = request.phone.trim();
+    let requested_via = parse_code_preference(request.code_via.as_deref())?;
     if phone.is_empty() {
         return Err(ApiError::bad_request(pick(
             "手机号不能为空",
@@ -803,13 +840,11 @@ async fn start_phone_login(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
         .await
         .map_err(|err| ApiError::internal(err.to_string()))?;
 
-    let token = tokio::time::timeout(
-        Duration::from_secs(30),
-        tg.inner().request_login_code(phone, API_HASH),
-    )
-    .await
-    .map_err(|_| ApiError::new(504, pick("请求超时", "request timed out")))?
-    .map_err(|err| ApiError::bad_request(err.to_string()))?;
+    let code_state =
+        tokio::time::timeout(Duration::from_secs(30), tg.send_login_code(phone, API_HASH))
+            .await
+            .map_err(|_| ApiError::new(504, pick("请求超时", "request timed out")))?
+            .map_err(|err| ApiError::bad_request(err.to_string()))?;
 
     let flow_id = next_flow_id();
     state
@@ -818,23 +853,27 @@ async fn start_phone_login(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
             AuthFlow::PhoneCode {
                 common: FlowCommon::new(temp_name),
                 tg,
-                phone: phone.to_string(),
-                token,
+                code_state,
+                requested_via,
                 invalid_attempts: 0,
             },
         )
         .await;
 
-    Ok((
-        200,
-        json!({
-            "ok": true,
-            "flow_id": flow_id,
-            "kind": "phone",
-            "status": "waiting_for_code",
-            "phone": phone,
-        }),
-    ))
+    let flow = state.get_flow(&flow_id).await.ok_or_else(|| {
+        ApiError::internal(pick("登录流程创建失败", "failed to create login flow"))
+    })?;
+    let guard = flow.lock().await;
+    let payload = match &*guard {
+        AuthFlow::PhoneCode {
+            code_state,
+            requested_via,
+            invalid_attempts,
+            ..
+        } => phone_code_payload(&flow_id, *requested_via, code_state, *invalid_attempts),
+        _ => unreachable!("new phone flow must be waiting for code"),
+    };
+    Ok((200, payload))
 }
 
 async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(u16, Value)> {
@@ -858,15 +897,17 @@ async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
         AuthFlow::PhoneCode {
             mut common,
             tg,
-            phone,
-            token,
+            code_state,
+            requested_via,
             invalid_attempts,
         } => {
             common.touch();
-            let sign_in =
-                tokio::time::timeout(Duration::from_secs(30), tg.inner().sign_in(&token, &code))
-                    .await
-                    .map_err(|_| ApiError::new(504, pick("登录超时", "sign in timed out")))?;
+            let sign_in = tokio::time::timeout(
+                Duration::from_secs(30),
+                tg.sign_in_with_phone_code(&code_state, &code),
+            )
+            .await
+            .map_err(|_| ApiError::new(504, pick("登录超时", "sign in timed out")))?;
 
             match sign_in {
                 Ok(user) => {
@@ -891,7 +932,8 @@ async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
                     *guard = AuthFlow::PhonePassword {
                         common,
                         tg,
-                        phone,
+                        phone: code_state.phone,
+                        requested_via,
                         password_token,
                     };
                     Ok((
@@ -901,6 +943,7 @@ async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
                             "flow_id": request.flow_id,
                             "kind": "phone",
                             "status": "waiting_for_password",
+                            "requested_via": requested_via.as_str(),
                             "hint": hint,
                         }),
                     ))
@@ -920,8 +963,8 @@ async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
                         *guard = AuthFlow::PhoneCode {
                             common,
                             tg,
-                            phone,
-                            token,
+                            code_state,
+                            requested_via,
                             invalid_attempts: used_attempts,
                         };
                         Err(ApiError::new(
@@ -940,6 +983,64 @@ async fn submit_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(
                     drop(guard);
                     state.remove_flow(&request.flow_id).await;
                     cleanup_temp_session(&common.temp_name);
+                    Err(ApiError::bad_request(err.to_string()))
+                }
+            }
+        }
+        other => {
+            *guard = other;
+            Err(ApiError::bad_request(pick(
+                "当前流程不处于等待验证码状态",
+                "flow is not waiting for a verification code",
+            )))
+        }
+    }
+}
+
+async fn resend_phone_code(state: Arc<HttpApiState>, body: &[u8]) -> ApiResult<(u16, Value)> {
+    let request: PhoneResendRequest = parse_json_body(body)?;
+    let flow = state
+        .get_flow(&request.flow_id)
+        .await
+        .ok_or_else(|| ApiError::not_found(pick("登录流程不存在", "login flow not found")))?;
+
+    let mut guard = flow.lock().await;
+    let current = std::mem::replace(&mut *guard, AuthFlow::Consumed);
+    match current {
+        AuthFlow::PhoneCode {
+            mut common,
+            tg,
+            code_state,
+            requested_via,
+            ..
+        } => {
+            common.touch();
+            let resent =
+                tokio::time::timeout(Duration::from_secs(30), tg.resend_login_code(&code_state))
+                    .await
+                    .map_err(|_| ApiError::new(504, pick("请求超时", "request timed out")))?;
+
+            match resent {
+                Ok(code_state) => {
+                    let payload =
+                        phone_code_payload(&request.flow_id, requested_via, &code_state, 0);
+                    *guard = AuthFlow::PhoneCode {
+                        common,
+                        tg,
+                        code_state,
+                        requested_via,
+                        invalid_attempts: 0,
+                    };
+                    Ok((200, payload))
+                }
+                Err(err) => {
+                    *guard = AuthFlow::PhoneCode {
+                        common,
+                        tg,
+                        code_state,
+                        requested_via,
+                        invalid_attempts: 0,
+                    };
                     Err(ApiError::bad_request(err.to_string()))
                 }
             }
@@ -975,6 +1076,7 @@ async fn submit_phone_password(state: Arc<HttpApiState>, body: &[u8]) -> ApiResu
             mut common,
             tg,
             phone,
+            requested_via,
             password_token,
         } => {
             common.touch();
@@ -1010,6 +1112,7 @@ async fn submit_phone_password(state: Arc<HttpApiState>, body: &[u8]) -> ApiResu
                         common,
                         tg,
                         phone,
+                        requested_via,
                         password_token: next_password_token,
                     };
                     Err(ApiError::new(
@@ -1180,34 +1283,28 @@ async fn get_flow_status(state: Arc<HttpApiState>, flow_id: &str) -> ApiResult<(
         AuthFlow::PhoneCode {
             mut common,
             tg,
-            phone,
-            token,
+            code_state,
+            requested_via,
             invalid_attempts,
         } => {
             common.touch();
             *guard = AuthFlow::PhoneCode {
                 common,
                 tg,
-                phone: phone.clone(),
-                token,
+                code_state: code_state.clone(),
+                requested_via,
                 invalid_attempts,
             };
             Ok((
                 200,
-                json!({
-                    "ok": true,
-                    "flow_id": flow_id,
-                    "kind": "phone",
-                    "status": "waiting_for_code",
-                    "phone": phone,
-                    "remaining_attempts": MAX_CODE_ATTEMPTS.saturating_sub(invalid_attempts),
-                }),
+                phone_code_payload(flow_id, requested_via, &code_state, invalid_attempts),
             ))
         }
         AuthFlow::PhonePassword {
             mut common,
             tg,
             phone,
+            requested_via,
             password_token,
         } => {
             let hint = password_token.hint().map(|value| value.to_string());
@@ -1216,6 +1313,7 @@ async fn get_flow_status(state: Arc<HttpApiState>, flow_id: &str) -> ApiResult<(
                 common,
                 tg,
                 phone: phone.clone(),
+                requested_via,
                 password_token,
             };
             Ok((
@@ -1226,6 +1324,7 @@ async fn get_flow_status(state: Arc<HttpApiState>, flow_id: &str) -> ApiResult<(
                     "kind": "phone",
                     "status": "waiting_for_password",
                     "phone": phone,
+                    "requested_via": requested_via.as_str(),
                     "hint": hint,
                 }),
             ))
@@ -1447,6 +1546,9 @@ pub(crate) async fn route_http_request(
         },
         ("POST", ["v1", "auth", "phone", "start"]) => {
             start_phone_login(Arc::clone(&state), body).await
+        }
+        ("POST", ["v1", "auth", "phone", "resend"]) => {
+            resend_phone_code(Arc::clone(&state), body).await
         }
         ("POST", ["v1", "auth", "phone", "submit-code"]) => {
             submit_phone_code(Arc::clone(&state), body).await
