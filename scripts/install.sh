@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --proxy)
-      PROXY_PREFIX="https://mirror.ghproxy.com/"
+      PROXY_PREFIX="https://gh-proxy.com/"
       shift
       ;;
     *)

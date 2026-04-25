@@ -53,6 +53,11 @@ Use proxy mode:
 curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --proxy
 ```
 
+Notes:
+
+- `--proxy` rewrites remote release asset downloads to `https://gh-proxy.com/https://github.com/...`
+- The installer script itself is still fetched from `raw.githubusercontent.com`
+
 ### Windows (PowerShell)
 
 ```powershell

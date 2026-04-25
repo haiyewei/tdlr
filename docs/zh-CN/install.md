@@ -53,6 +53,11 @@ curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.s
 curl -sSL https://raw.githubusercontent.com/haiyewei/tdlr/main/scripts/install.sh | bash -s -- --proxy
 ```
 
+说明：
+
+- `--proxy` 会把远程发布包下载地址改写为 `https://gh-proxy.com/https://github.com/...`
+- 初始安装脚本本身仍然是从 `raw.githubusercontent.com` 拉取
+
 ### Windows (PowerShell)
 
 ```powershell
