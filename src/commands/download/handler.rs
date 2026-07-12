@@ -91,7 +91,7 @@ pub async fn download_link(
     let dialog_id = resolved
         .peer
         .as_ref()
-        .map(|p| p.id().bare_id())
+        .and_then(|p| p.id().bare_id())
         .unwrap_or(dialog_id);
 
     if content_list.is_empty() {

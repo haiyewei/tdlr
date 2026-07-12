@@ -201,21 +201,21 @@ impl TelegramClient {
     }
 
     /// Get current home DC ID
-    pub fn home_dc_id(&self) -> i32 {
-        self.session.home_dc_id()
+    pub fn home_dc_id(&self) -> Result<i32> {
+        Ok(self.session.home_dc_id()?)
     }
 
     /// Get a peer reference from the session cache
     pub async fn get_peer_ref(
         &self,
         peer_id: grammers_session::types::PeerId,
-    ) -> Option<grammers_session::types::PeerRef> {
-        self.session.peer_ref(peer_id).await
+    ) -> Result<Option<grammers_session::types::PeerRef>> {
+        Ok(self.session.peer_ref(peer_id).await?)
     }
 
     /// Set home DC ID (needed after DC migration during login)
     pub async fn set_home_dc_id(&self, dc_id: i32) {
-        self.session.set_home_dc_id(dc_id).await;
+        let _ = self.session.set_home_dc_id(dc_id).await;
     }
 
     async fn invoke_auth<R: tl::RemoteCall>(
@@ -228,7 +228,7 @@ impl TelegramClient {
                 let Some(new_dc_id) = err.value.map(|value| value as i32) else {
                     return Err(InvocationError::Rpc(err));
                 };
-                self.session.set_home_dc_id(new_dc_id).await;
+                self.session.set_home_dc_id(new_dc_id).await.ok();
                 self.client.invoke_in_dc(new_dc_id, request).await
             }
             Err(err) => Err(err),
@@ -246,16 +246,19 @@ impl TelegramClient {
             .ok();
 
         let user = User::from_raw(&self.client, auth.user);
-        let auth = user.to_ref().await.unwrap().auth;
+        let peer_ref = user.to_ref().await.unwrap();
 
-        self.session
-            .cache_peer(&PeerInfo::User {
-                id: user.id().bare_id(),
-                auth: Some(auth),
-                bot: Some(user.is_bot()),
-                is_self: Some(true),
-            })
-            .await;
+        if let Some(peer_ref) = peer_ref {
+            self.session
+                .cache_peer(&PeerInfo::User {
+                    id: peer_ref.id.bare_id_unchecked(),
+                    auth: Some(peer_ref.auth),
+                    bot: Some(user.is_bot()),
+                    is_self: Some(true),
+                })
+                .await
+                .ok();
+        }
 
         if let Some(tl::enums::updates::State::State(state)) = update_state {
             self.session
@@ -266,7 +269,8 @@ impl TelegramClient {
                     seq: state.seq,
                     channels: Vec::new(),
                 }))
-                .await;
+                .await
+                .ok();
         }
 
         Ok(user)

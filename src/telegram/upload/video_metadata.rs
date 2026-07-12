@@ -1,7 +1,7 @@
 use crate::i18n::{is_zh, pick};
 use anyhow::{anyhow, Context, Result};
 use grammers_client::media::Attribute;
-use nom_exif::{MediaParser, MediaSource, TrackInfo, TrackInfoTag};
+use nom_exif::{MediaKind, MediaParser, MediaSource, TrackInfo, TrackInfoTag};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
@@ -75,7 +75,7 @@ fn probe_video_metadata(file_path: &Path) -> Result<Option<VideoMetadata>> {
 }
 
 fn probe_with_nom_exif(file_path: &Path) -> Result<VideoMetadata> {
-    let source = MediaSource::file_path(file_path).with_context(|| {
+    let source = MediaSource::open(file_path).with_context(|| {
         if is_zh() {
             format!("无法打开视频文件 '{}'", file_path.display())
         } else {
@@ -83,12 +83,12 @@ fn probe_with_nom_exif(file_path: &Path) -> Result<VideoMetadata> {
         }
     })?;
 
-    if !source.has_track() {
+    if source.kind() != MediaKind::Track {
         return Ok(VideoMetadata::default());
     }
 
     let mut parser = MediaParser::new();
-    let info: TrackInfo = parser.parse(source).with_context(|| {
+    let info: TrackInfo = parser.parse_track(source).with_context(|| {
         if is_zh() {
             format!("无法解析视频元数据 '{}'", file_path.display())
         } else {
@@ -102,11 +102,11 @@ fn probe_with_nom_exif(file_path: &Path) -> Result<VideoMetadata> {
             .and_then(|value| value.as_u64())
             .map(Duration::from_millis),
         width: info
-            .get(TrackInfoTag::ImageWidth)
+            .get(TrackInfoTag::Width)
             .and_then(|value| value.as_u32())
             .and_then(parse_positive_i32),
         height: info
-            .get(TrackInfoTag::ImageHeight)
+            .get(TrackInfoTag::Height)
             .and_then(|value| value.as_u32())
             .and_then(parse_positive_i32),
     })

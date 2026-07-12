@@ -76,7 +76,7 @@ pub async fn run(limit: usize, account: Option<i64>) -> Result<()> {
     while let Some(dialog) = dialogs.next().await? {
         let peer = dialog.peer();
         let name = peer.name().unwrap_or(pick("未知", "Unknown")).to_string();
-        let bare_id = peer.id().bare_id();
+        let bare_id = peer.id().bare_id_unchecked();
 
         let Some(score) = dialog_score(bare_id, Some(&name)) else {
             continue;

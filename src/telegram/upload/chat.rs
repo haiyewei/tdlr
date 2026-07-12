@@ -147,7 +147,7 @@ async fn resolve_by_id(client: &TelegramClient, id: i64) -> Result<ResolvedChat>
 
     for peer_id_opt in possible_peers {
         if let Some(peer_id) = peer_id_opt {
-            if let Some(peer_ref) = client.get_peer_ref(peer_id).await {
+            if let Ok(Some(peer_ref)) = client.get_peer_ref(peer_id).await {
                 if let Ok(peer) = client.inner().resolve_peer(peer_ref).await {
                     let name = peer.name().unwrap_or(pick("未知", "Unknown")).to_string();
                     let input_peer = peer_to_input_peer(&peer);
@@ -170,7 +170,7 @@ async fn resolve_by_id(client: &TelegramClient, id: i64) -> Result<ResolvedChat>
 
     while let Some(dialog) = dialogs.next().await? {
         let peer = &dialog.peer;
-        let peer_id: i64 = peer.id().bare_id();
+        let peer_id: i64 = peer.id().bare_id_unchecked();
 
         // Match against the normalized target_id
         if peer_id == target_id || peer_id == id || peer_id == id.abs() {
